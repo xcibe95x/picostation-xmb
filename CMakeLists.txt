@@ -48,7 +48,7 @@ add_executable(
     picostation-loader
     src/gpu.c
     src/main.c
-    src/controller.h
+    src/controller.c
 )
 target_link_libraries(picostation-loader PRIVATE common)
 

@@ -40,6 +40,8 @@
 #include "ps1/gpucmd.h"
 #include "ps1/registers.h"
 #include "controller.c"
+#include "cdrom.c"
+
 
 // In order to pick sprites (characters) out of our spritesheet, we need a table
 // listing all of them (in ASCII order in this case) with their UV coordinates
@@ -303,7 +305,7 @@ int main(int argc, const char **argv) {
     int startnumber = 0;
     
 
-
+	uint16_t previousbuttons = getButtonPress(0);
 	for (;;) {
 		int bufferX = usingSecondFrame ? SCREEN_WIDTH : 0;
 		int bufferY = 0;
@@ -338,46 +340,57 @@ int main(int argc, const char **argv) {
 		printString(chain, &font, 56,100, controllerbuffer);
 		uint16_t buttons = getButtonPress(0);
 
-		if((buttons >> 4) & 1)   {
+		if((!((previousbuttons >> 4) & 1)) && ((buttons >> 4) & 1))   {
             if (selectedindex > 1){
                 selectedindex = selectedindex - 1;
                 if(startnumber - selectedindex == 0){
                     startnumber = startnumber - 1;
                 }
-				delayMicroseconds(30);
-
+				for (int i = 0; i < 5; i++)
+    				waitForVSync();
             }
         }
-        if((buttons >> 6) & 1)   {
+        if((!((previousbuttons >> 6) & 1)) && ((buttons >> 6) & 1))    {
             if (selectedindex < lineCount){
                 selectedindex = selectedindex + 1;
                 if(selectedindex > 25){
                     startnumber = selectedindex - 25;
                 }
-
-                printf("DEBUG: selectedindex :%d - startnumber :%d - lineCount :%d \n", selectedindex, startnumber, lineCount);
-				delayMicroseconds(30);
+				for (int i = 0; i < 5; i++)
+    				waitForVSync();
             }
         }
 
-        if((buttons >> 5) & 1)   {
+        if((!((previousbuttons >> 5) & 1)) && ((buttons >> 5) & 1))    {
             if (selectedindex < lineCount - 25){
                 selectedindex = selectedindex +25;
-                
-                if(startnumber - selectedindex < 0){
-                    startnumber = startnumber +25;
-                }
-                printf("DEBUG: selectedindex :%d - startnumber :%d - lineCount :%d \n", selectedindex, startnumber, lineCount);
-				delayMicroseconds(30);
+                startnumber = startnumber+25;
+				for (int i = 0; i < 5; i++)
+    				waitForVSync();
             }
         }
 
-        if((buttons >> 3) & 1)   {
-                printf("DEBUG: selectedindex :%d\n", selectedindex);
-				delayMicroseconds(30);
+
+        if((!((previousbuttons >> 7) & 1)) && ((buttons >> 7) & 1))    {
+            if (selectedindex > 25){
+                selectedindex = selectedindex - 25;
+                if (startnumber-25 <= 0){
+                    startnumber = 0;
+                } else {
+                    startnumber = startnumber - 25;
+                }
+				for (int i = 0; i < 5; i++)
+    				waitForVSync();
+            }
         }
 
+        if((!((previousbuttons >> 3) & 1)) && ((buttons >> 3) & 1))    {
+                printf("DEBUG: selectedindex :%d\n", selectedindex);
+				uint8_t test = 0x50 ;
+				issueCDROMCommand(0x19,&test,sizeof(test));
+        }
 
+		previousbuttons = buttons;
 
 		printString(
 			chain, &font, 16, 10,
@@ -410,6 +423,7 @@ int main(int argc, const char **argv) {
 
 		// Show the current frame number by formatting some text into a
 		// temporary buffer then printing it.
+		
 
 		*(chain->nextPacket) = gp0_endTag(0);
 
