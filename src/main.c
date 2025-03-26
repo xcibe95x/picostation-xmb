@@ -266,7 +266,7 @@ void parseLines(char *dataBuffer, char lines[MAX_LINES][MAX_LENGTH], int *lineCo
 
 char lines[MAX_LINES][MAX_LENGTH];
 int lineCount = 0;
-
+uint8_t test[] = {0x50, 0xfa, 0xf0,0xf1} ;
 int main(int argc, const char **argv) {
 	initSerialIO(115200);
 	initControllerBus();
@@ -294,6 +294,9 @@ int main(int argc, const char **argv) {
 	DMAChain dmaChains[2];
 	bool     usingSecondFrame = false;
 
+	uint8_t test[] = {0x50, 0xf1,0x00,0x00} ;
+	issueCDROMCommand(0x19,test,sizeof(test));
+
 	char text[200] = "Tekken 3\nTime Crisis\nDriver\nSpyro 1\nTomb Raider\nStreet Fighter Alpha 3";
 
     int selectedindex = 1;
@@ -303,6 +306,7 @@ int main(int argc, const char **argv) {
     
     parseLines((char *)text, lines, &lineCount);
     int startnumber = 0;
+
     
 
 	uint16_t previousbuttons = getButtonPress(0);
@@ -393,12 +397,37 @@ int main(int argc, const char **argv) {
 				/* Rama's code */
 				StartCommand();
 				WriteParam( 0x50 );
-				WriteParam( 0xd1 );
-				WriteParam( 0xab );
-				WriteParam( 0xfe );
+				WriteParam( 0xf2 );
+				WriteParam( selectedindex );
+				//WriteParam( 0xf1 );
 				WriteCommand( 0x19 );
 				AckWithTimeout(500000);
         }
+
+		if((!((previousbuttons >> 14) & 1)) && ((buttons >> 14) & 1))    {
+			printf("DEBUG:X selectedindex  :%d\n", selectedindex);
+			/* SpicyJPEG's code */
+			uint8_t test[] = {0x50, 0xf2, selectedindex} ;
+			issueCDROMCommand(0x19,test,sizeof(test));
+			
+			/* Rama's code 
+			StartCommand();
+			WriteParam( 0x50 );
+			WriteParam( 0xd1 );
+			WriteParam( 0xab );
+			WriteParam( 0xfe );
+			WriteCommand( 0x19 );
+			AckWithTimeout(500000);*/
+		}
+
+		if((!((previousbuttons >> 12) & 1)) && ((buttons >> 12) & 1))    {
+			printf("DEBUG:X selectedindex  :%d\n", selectedindex);
+			/* reset */
+			uint8_t test[] = {0x50, 0xfa, 0xBE, 0xEF} ;
+			issueCDROMCommand(0x19,test,sizeof(test));
+			
+		}
+
 
 		previousbuttons = buttons;
 
