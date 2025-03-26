@@ -386,8 +386,18 @@ int main(int argc, const char **argv) {
 
         if((!((previousbuttons >> 3) & 1)) && ((buttons >> 3) & 1))    {
                 printf("DEBUG: selectedindex :%d\n", selectedindex);
-				uint8_t test = 0x50 ;
-				issueCDROMCommand(0x19,&test,sizeof(test));
+				/* SpicyJPEG's code 
+				uint8_t test[] = {0x50, 0xd1, 0xab,0xfe} ;
+				issueCDROMCommand(0x19,test,sizeof(test));
+				*/
+				/* Rama's code */
+				StartCommand();
+				WriteParam( 0x50 );
+				WriteParam( 0xd1 );
+				WriteParam( 0xab );
+				WriteParam( 0xfe );
+				WriteCommand( 0x19 );
+				AckWithTimeout(500000);
         }
 
 		previousbuttons = buttons;
