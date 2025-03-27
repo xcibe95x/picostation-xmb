@@ -221,7 +221,7 @@ static void printString(
 #define FONT_HEIGHT      56
 #define FONT_COLOR_DEPTH GP0_COLOR_4BPP
 
-extern const uint8_t fontTexture[], fontPalette[];
+extern const uint8_t fontTexture[], fontPalette[], piTexture[];
 
 #define MAX_LINES 3000   // Maksimum satır sayısı
 #define MAX_LENGTH 31
@@ -291,6 +291,7 @@ int main(int argc, const char **argv) {
 		FONT_HEIGHT, FONT_WIDTH, FONT_HEIGHT, FONT_COLOR_DEPTH
 	);
 
+
 	DMAChain dmaChains[2];
 	bool     usingSecondFrame = false;
 
@@ -335,7 +336,6 @@ int main(int argc, const char **argv) {
 		ptr[0] = gp0_rgb(64, 64, 64) | gp0_vramFill();
 		ptr[1] = gp0_xy(bufferX, bufferY);
 		ptr[2] = gp0_xy(SCREEN_WIDTH, SCREEN_HEIGHT);
-
 
 		char controllerbuffer[256];
 		//get the controller button press
