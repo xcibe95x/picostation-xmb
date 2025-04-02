@@ -4,6 +4,13 @@
 #include "string.h"
 #include "ps1/registers.h"
 
+
+#include "system.h"
+
+#include "spu.h"
+
+#include <stdio.h>
+
 //#include "spu.h"
 /*
 code for registers.h
@@ -202,14 +209,6 @@ void waitForINT3(){
     }
 }
 
-void convertLBAToMSF(CDROMMSF *msf, uint32_t lba) {
-    lba += 150; // Add TOC pregap
-
-    msf->minute = toBCD(lba / (75 * 60));
-    msf->second = toBCD((lba / 75) % 60);
-    msf->frame  = toBCD(lba % 75);
-}
-
 
 /// @brief 
 /// @param lba LBA of the sector to read
@@ -231,7 +230,7 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
     if (doubleSpeed)
         mode |= CDROM_MODE_SPEED_2X;
 
-    convertLBAToMSF(&msf, lba);
+    cdrom_convertLBAToMSF(&msf, lba);
     issueCDROMCommand(CDROM_CMD_SETMODE , &mode, sizeof(mode));
     waitForINT3();
     issueCDROMCommand(CDROM_CMD_SETLOC, (const uint8_t *)&msf, sizeof(msf));
@@ -296,3 +295,5 @@ void cdromINT5(void){
     waitingForInt5 = false;
     return;
 }
+
+

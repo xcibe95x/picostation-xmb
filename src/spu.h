@@ -3,8 +3,8 @@
 #include "ps1/cdrom.h"
 #include "filesystem.h"
 #include "spu.h"
-#include "registers.h"
-#include "system.h"
+#include "ps1/registers.h"
+#include "ps1/system.h"
 
 /* Basic API */
 

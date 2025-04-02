@@ -265,13 +265,15 @@ void parseLines(char *dataBuffer, char lines[MAX_LINES][MAX_LENGTH], int *lineCo
     }
 }
 
+
+
 char lines[MAX_LINES][MAX_LENGTH];
 int lineCount = 0;
 uint8_t test[] = {0x50, 0xfa, 0xf0,0xf1} ;
 int main(int argc, const char **argv) {
 	initSerialIO(115200);
 	initControllerBus();
-
+	//initFilesystem(); freezes
 
 
 	if ((GPU_GP1 & GP1_STAT_FB_MODE_BITMASK) == GP1_STAT_FB_MODE_PAL) {
@@ -304,7 +306,7 @@ int main(int argc, const char **argv) {
 
 	char text[200] = "Tekken 3\nTime Crisis\nDriver\nSpyro 1\nTomb Raider\nStreet Fighter Alpha 3";
 
-    int selectedindex = 1;
+    uint16_t selectedindex = 1;
 
     char lines[MAX_LINES][MAX_LENGTH];
     int lineCount = 0;
@@ -313,24 +315,37 @@ int main(int argc, const char **argv) {
     int startnumber = 0;
 
 
-	uint32_t modelLba;
-    uint16_t sectorBuffer[1024];
+
+    //uint16_t sectorBuffer[1024];
     
-    modelLba = getLbaToFile("system.cnf");
-	int checker = 0;
-   if(!modelLba){
-        // File not found
-        printf("File not found in CD\n");
-		checker = 1;
-    } else {
-		checker = 0;
+    
+	size_t file_load(const char *name, void *sectorBuffer){
+		uint32_t modelLba;
+		
+		
+		modelLba = getLbaToFile(name);
+		if(!modelLba){
+			printf("File not found\n");
+			return 1;
+		}
+	
+		startCDROMRead(
+			modelLba,
+			sectorBuffer,
+			1,
+			2048,
+			true,
+			true
+		);
+
+	
+		return 0;
 	}
- 
 
+	uint16_t txtBuffer[1024];
+	file_load("PICO.DAT", txtBuffer);
 
-    
-
-    
+	
 
 	uint16_t previousbuttons = getButtonPress(0);
 	for (;;) {
@@ -429,8 +444,8 @@ int main(int argc, const char **argv) {
 		if((!((previousbuttons >> 14) & 1)) && ((buttons >> 14) & 1))    {
 			printf("DEBUG:X selectedindex  :%d\n", selectedindex);
 			/* SpicyJPEG's code */
-			uint8_t test[] = {0x50, 0xf2, selectedindex} ;
-			issueCDROMCommand(0x19,test,sizeof(test));
+			uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xf2, selectedindex} ;
+			issueCDROMCommand(CDROM_CMD_TEST ,test,sizeof(test));
 			
 			/* Rama's code 
 			StartCommand();
@@ -445,34 +460,15 @@ int main(int argc, const char **argv) {
 		if((!((previousbuttons >> 12) & 1)) && ((buttons >> 12) & 1))    {
 			printf("DEBUG:X selectedindex  :%d\n", selectedindex);
 			/* reset */
-			uint8_t test[] = {0x50, 0xfa, 0xBE, 0xEF} ;
-			issueCDROMCommand(0x19,test,sizeof(test));
+			uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xfa, 0xBE, 0xEF} ;
+			issueCDROMCommand(CDROM_CMD_TEST,test,sizeof(test));
 			
 		}
 
 
 
 		if((!((previousbuttons >> 13) & 1)) && ((buttons >> 13) & 1))    {
-			if (checker == 1){
-				printString(
-					chain, &font, 150, 150,
-					"nofile"
-				);
-			} else {
-				printString(
-					chain, &font, 15, 150,
-					"start"
-				);
-				startCDROMRead(
-					modelLba,
-					sectorBuffer,
-					1,
-					2048,
-					true,
-					true
-				);
-				
-			}
+			printf("debug message \n");
 		}
 
 
