@@ -41,6 +41,7 @@
 #include "ps1/registers.h"
 #include "controller.c"
 #include "cdrom.c"
+#include "filesystem.c"
 
 
 // In order to pick sprites (characters) out of our spritesheet, we need a table
@@ -271,6 +272,8 @@ int main(int argc, const char **argv) {
 	initSerialIO(115200);
 	initControllerBus();
 
+
+
 	if ((GPU_GP1 & GP1_STAT_FB_MODE_BITMASK) == GP1_STAT_FB_MODE_PAL) {
 		puts("Using PAL mode");
 		setupGPU(GP1_MODE_PAL, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -295,8 +298,9 @@ int main(int argc, const char **argv) {
 	DMAChain dmaChains[2];
 	bool     usingSecondFrame = false;
 
-	uint8_t test[] = {0x50, 0xf1,0x00,0x00} ;
-	issueCDROMCommand(0x19,test,sizeof(test));
+	//uint8_t test[] = {0x50, 0xf1,0x00,0x00} ;
+	//issueCDROMCommand(CDROM_CMD_TEST,test,sizeof(test));
+
 
 	char text[200] = "Tekken 3\nTime Crisis\nDriver\nSpyro 1\nTomb Raider\nStreet Fighter Alpha 3";
 
@@ -307,6 +311,24 @@ int main(int argc, const char **argv) {
     
     parseLines((char *)text, lines, &lineCount);
     int startnumber = 0;
+
+
+	uint32_t modelLba;
+    uint16_t sectorBuffer[1024];
+    
+    modelLba = getLbaToFile("system.cnf");
+	int checker = 0;
+   if(!modelLba){
+        // File not found
+        printf("File not found in CD\n");
+		checker = 1;
+    } else {
+		checker = 0;
+	}
+ 
+
+
+    
 
     
 
@@ -341,7 +363,7 @@ int main(int argc, const char **argv) {
 		//get the controller button press
 
 		snprintf(controllerbuffer, sizeof(controllerbuffer), "%i", getButtonPress(0));
-		printString(chain, &font, 56,100, controllerbuffer);
+		//printString(chain, &font, 56,100, controllerbuffer);
 		uint16_t buttons = getButtonPress(0);
 
 		if((!((previousbuttons >> 4) & 1)) && ((buttons >> 4) & 1))   {
@@ -429,6 +451,32 @@ int main(int argc, const char **argv) {
 		}
 
 
+
+		if((!((previousbuttons >> 13) & 1)) && ((buttons >> 13) & 1))    {
+			if (checker == 1){
+				printString(
+					chain, &font, 150, 150,
+					"nofile"
+				);
+			} else {
+				printString(
+					chain, &font, 15, 150,
+					"start"
+				);
+				startCDROMRead(
+					modelLba,
+					sectorBuffer,
+					1,
+					2048,
+					true,
+					true
+				);
+				
+			}
+		}
+
+
+
 		previousbuttons = buttons;
 
 		printString(
@@ -457,6 +505,15 @@ int main(int argc, const char **argv) {
 		}
 
 
+
+	/*	char printBuffer[1024];
+
+    	sprintf(printBuffer, "%i", modelLba);
+		printf("LBA: %i \n", modelLba);
+
+		printString(chain, &font, 56,100, printBuffer);
+ 
+*/
 
 
 
