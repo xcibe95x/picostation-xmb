@@ -3,7 +3,7 @@
 #include <stddef.h>
 
 #include "ps1/cdrom.h"
-#include "cdrom.c"
+#include "cdrom.h"
 //#include "spu.h"
 #include "stream.h"
 

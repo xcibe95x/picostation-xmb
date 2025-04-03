@@ -3,7 +3,7 @@
 #include "filesystem.h"
 #include "spu.h"
 #include "system.h"
-#include "cdrom.c"
+#include "cdrom.h"
 
 
 // TODO:

@@ -42,6 +42,7 @@
 #include "includes/rama.c"
 #include "includes/cdrom.h"
 #include "includes/filesystem.h"
+#include "includes/irq.h"
 
 #include "gpu.h"
 #include "controller.c"
@@ -232,7 +233,7 @@ extern const uint8_t fontTexture[], fontPalette[], piTexture[];
 #define MAX_LINES 3000   // Maksimum satır sayısı
 #define MAX_LENGTH 31
 
-/*
+int loadchecker = 0;
 size_t file_load(const char *name, void *sectorBuffer){
 	uint32_t modelLba;
 	
@@ -240,7 +241,11 @@ size_t file_load(const char *name, void *sectorBuffer){
 	modelLba = getLbaToFile(name);
 	if(!modelLba){
 		printf("File not found\n");
+
 		return 1;
+	} else {
+		printf("%d", modelLba);
+		loadchecker = 1;
 	}
 
 	startCDROMRead(
@@ -255,7 +260,7 @@ size_t file_load(const char *name, void *sectorBuffer){
 
 	return 0;
 }
-	*/
+	
 
 void parseLines(char *dataBuffer, char lines[MAX_LINES][MAX_LENGTH], int *lineCount) {
     if (!dataBuffer) {
@@ -302,8 +307,9 @@ uint8_t test[] = {0x50, 0xfa, 0xf0,0xf1} ;
 int main(int argc, const char **argv) {
 	initSerialIO(115200);
 	initControllerBus();
+	initIRQ();
 	initCDROM();
-	initFilesystem(); 
+	//initFilesystem(); 
 
 
 
@@ -350,10 +356,9 @@ int main(int argc, const char **argv) {
     //uint16_t sectorBuffer[1024];
     
     
+	uint16_t txtBuffer[1024];
+	file_load("PICO.DAT", txtBuffer);
 
-
-	//uint16_t txtBuffer[1024];
-	//file_load("PICO.DAT", txtBuffer);
 
 	
 
@@ -472,6 +477,19 @@ int main(int argc, const char **argv) {
 		if((!((previousbuttons >> 13) & 1)) && ((buttons >> 13) & 1))    {
 			printf("debug message \n");
 		}
+		
+	
+	char strbuffer[1024];
+
+			snprintf(strbuffer, sizeof(strbuffer), "%s", txtBuffer);
+			printString(chain, &font, 12, 200, strbuffer);	
+			printf(strbuffer);
+			if ( loadchecker == 0){
+				printString(chain, &font, 12, 220, "file not found");	
+			} else {
+				printString(chain, &font, 12, 220, "file found actually");
+			}
+			
 
 
 
@@ -515,8 +533,7 @@ int main(int argc, const char **argv) {
 
 
 
-		// Show the current frame number by formatting some text into a
-		// temporary buffer then printing it.
+
 		
 
 		*(chain->nextPacket) = gp0_endTag(0);

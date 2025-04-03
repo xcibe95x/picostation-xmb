@@ -35,6 +35,8 @@ add_library(
     ps1-bare-metal/src/libc/string.s
     ps1-bare-metal/src/ps1/cache.s
     ps1-bare-metal/src/vendor/printf.c
+    src/includes/system.s
+    src/includes/unhandledexc.c
 )
 target_include_directories(
     common PUBLIC
@@ -50,8 +52,10 @@ add_executable(
     src/main.c
     src/controller.c
     src/includes/cdrom.c
-    #src/includes/system.c
+    src/includes/system.c
     src/includes/filesystem.c
+    src/includes/irq.c
+    src/includes/stream.c
 )
 target_link_libraries(picostation-loader PRIVATE common)
 
@@ -95,6 +99,15 @@ add_custom_command(
     COMMAND
         "${Python3_EXECUTABLE}"
         "${PROJECT_SOURCE_DIR}/ps1-bare-metal/tools/convertExecutable.py"
+        "$<TARGET_FILE:picostation-loader>"
+        picostation-loader.psexe
+    VERBATIM
+)
+
+add_custom_command(
+    TARGET     picostation-loader POST_BUILD
+    COMMAND
+        "${PROJECT_SOURCE_DIR}/makeimage.bat"
         "$<TARGET_FILE:picostation-loader>"
         picostation-loader.psexe
     VERBATIM

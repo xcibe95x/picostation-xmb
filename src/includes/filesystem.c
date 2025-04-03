@@ -1,7 +1,7 @@
 #include "filesystem.h"
 #include "stdbool.h"
 #include "cdrom.h"
-
+#include "stdio.h"
 // Internal global variable for this lib. Hides away the rootDirData for internal use.
 uint8_t rootDirData[2048];
 
@@ -49,6 +49,7 @@ int parseDirRecord(uint8_t *dataSector, uint8_t *recordLength, DirectoryEntry *d
 void getRootDirData(void *rootDirData){
    uint8_t buffer[2048];
    uint32_t rootDirLBA;
+   printf("DEBUG: define buffer and lba");
    // Read the PVD sector into ram
    startCDROMRead(
       16,
@@ -58,10 +59,11 @@ void getRootDirData(void *rootDirData){
       true,
       true
    );
+   printf("DEBUG: disk read");
 
    // Get the LBA for the root directory.
    getRootDirLba(buffer, &rootDirLBA);
-
+   printf("DEBUG: getrootdirlba");
    // Read the contents of the root directory.
    startCDROMRead(
       rootDirLBA,
@@ -71,6 +73,7 @@ void getRootDirData(void *rootDirData){
       true,
       true
    );
+   printf("DEBUG: second read");
 }
 
 #include <stdio.h>

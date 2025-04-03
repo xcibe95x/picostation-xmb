@@ -84,7 +84,7 @@ void setInterruptHandler(ArgFunction func, void *arg) {
 	interruptHandlerArg = arg;
 	atomic_signal_fence(memory_order_release);
 }
-
+/*
 void flushCache(void) {
 	//if (!_flushCache)
 		//_flushCache = BIOS_API_TABLE[0x44];
@@ -95,7 +95,7 @@ void flushCache(void) {
 	if (enable)
 		enableInterrupts();
 }
-
+*/
 void softReset(void) {
 	disableInterrupts();
 	BIOS_ENTRY_POINT();
