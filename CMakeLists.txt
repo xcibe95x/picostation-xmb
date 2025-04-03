@@ -49,6 +49,9 @@ add_executable(
     src/gpu.c
     src/main.c
     src/controller.c
+    src/includes/cdrom.c
+    #src/includes/system.c
+    src/includes/filesystem.c
 )
 target_link_libraries(picostation-loader PRIVATE common)
 

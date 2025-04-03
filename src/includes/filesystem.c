@@ -1,5 +1,6 @@
 #include "filesystem.h"
-#include "cdrom.c"
+#include "stdbool.h"
+#include "cdrom.h"
 
 // Internal global variable for this lib. Hides away the rootDirData for internal use.
 uint8_t rootDirData[2048];

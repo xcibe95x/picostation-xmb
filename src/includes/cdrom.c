@@ -1,98 +1,14 @@
 #include "stdatomic.h"
 #include "ps1/cdrom.h"
-#include <stdbool.h>
+#include "cdrom.h"
+
 #include "string.h"
+
 #include "ps1/registers.h"
 
 
-#include "system.h"
-
-#include "spu.h"
-
 #include <stdio.h>
-
-//#include "spu.h"
-/*
-code for registers.h
-
-#define CDREG0 0xBF801800
-#define pCDREG0 *(unsigned char *)CDREG0
-
-#define CDREG1 0xBF801801
-#define pCDREG1 *(unsigned char *)CDREG1
-
-#define CDREG2 0xBF801802
-#define pCDREG2 *(unsigned char *)CDREG2
-
-#define CDREG3 0xBF801803
-#define pCDREG3 *(unsigned char *)CDREG3
-
-#define CDREG0_DATA_IN_RESPONSEFIFO 0x20
-#define CDREG0_DATA_IN_DATAFIFO 0x40
-#define CDREG0_DATA_BUSY 0x80
-
-
-*/
-#include <stdio.h>
-#pragma once
-
-void CDClearInts() {
-    pCDREG0 = 1;
-    pCDREG3 = 0x1F;
-    // put it back
-    pCDREG0 = 0;
-}
-
-void StartCommand() {
-
-    while( ( pCDREG0 & CDREG0_DATA_IN_DATAFIFO ) != 0 )
-        ;
-    while( ( pCDREG0 & CDREG0_DATA_BUSY ) != 0 )
-        ;
-
-    // Select Reg3,Index 1 : 0x1F resets all IRQ bits
-    //CDClearInts(); // new clearInts now does pCDREG0 = 0 as last step
-}
-
-void WriteParam( uint8_t inParam ) {
-    // pCDREG0 = 0;                //not required in a loop, but good practice?
-    pCDREG2 = inParam;
-}
-
-void WriteCommand( uint8_t inCommand ) {
-    pCDREG0 = 0;
-    pCDREG1 = inCommand;
-}
-
-uint8_t lastInt = 0; // global variable
-uint8_t lastResponse = 0; // global variable
-
-uint8_t CDWaitIntWithTimeout( unsigned int timeout ) {
-    unsigned int timer = 0;
-    pCDREG0 = 1;
-    while( ( pCDREG3 & 0x07 ) == 0 ) {
-        if( timeout && ( timer++ > timeout ) ) {
-            if (timeout > 1999) printf(" toAck(%d)\n", timeout);
-            return 0;
-        }
-    }
-    //NewPrintf(" Ack(%d)\n", timer);
-    uint8_t returnInt = ( pCDREG3 & 0x07 );
-    return returnInt;
-}
-
-uint8_t ReadResponse() {
-    pCDREG0 = 0x01;
-    uint8_t returnValue = pCDREG1 & 0xFF; // better mask
-    return returnValue;
-}
-
-uint8_t AckWithTimeout(unsigned int timeout) {
-    lastInt = CDWaitIntWithTimeout(timeout);
-    lastResponse = ReadResponse();
-    CDClearInts();
-    return lastInt;
-}
+#include <stdbool.h>
 
 
 volatile bool waitingForInt1;
@@ -114,30 +30,8 @@ uint8_t cdromStatus;
 uint8_t cdromLastReadPurpose;
 
 #define toBCD(i) (((i) / 10 * 16) | ((i) % 10))
+
 #define CDROM_BUSY (CDROM_HSTS & CDROM_HSTS_BUSYSTS)
-
-
-static void delayMicrosecond(int time) {
-    // Calculate the approximate number of CPU cycles that need to be burned,
-    // assuming a 33.8688 MHz clock (1 us = 33.8688 = ~33.875 = 271 / 8 cycles).
-    // The loop consists of a branch and a decrement, thus each iteration will
-    // burn 2 cycles.
-    time = ((time * 271) + 4) / 8;
-
-    __asm__ volatile(
-        // The .set noreorder directive will prevent the assembler from trying
-        // to "hide" the branch instruction's delay slot by shuffling nearby
-        // instructions. .set push and .set pop are used to save and restore the
-        // assembler's settings respectively, ensuring the noreorder flag will
-        // not affect any other code.
-        ".set push\n"
-        ".set noreorder\n"
-        "bgtz  %0, .\n"
-        "addiu %0, -2\n"
-        ".set pop\n"
-        : "+r"(time)
-    );
-}
 
 void initCDROM(void) {
     BIU_DEV5_CTRL = 0x00020943; // Configure bus
@@ -180,7 +74,22 @@ void issueCDROMCommand(uint8_t cmd, const uint8_t *arg, size_t argLength) {
     
     CDROM_ADDRESS = 1;
     CDROM_HCLRCTL = CDROM_HCLRCTL_CLRPRM; // Clear parameter buffer
-    delayMicrosecond(3);
+    //delayMicroseconds(3);
+    int time = 102;
+    __asm__ volatile(
+        // The .set noreorder directive will prevent the assembler from trying
+        // to "hide" the branch instruction's delay slot by shuffling nearby
+        // instructions. .set push and .set pop are used to save and restore the
+        // assembler's settings respectively, ensuring the noreorder flag will
+        // not affect any other code.
+        ".set push\n"
+        ".set noreorder\n"
+        "bgtz  %0, .\n"
+        "addiu %0, -2\n"
+        ".set pop\n"
+        : "+r"(time)
+    );
+
     while (CDROM_BUSY)
         __asm__ volatile("");
 
@@ -226,16 +135,16 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
     CDROMMSF     msf;
 
     if (sectorSize == 2340)
-        mode |= CDROM_MODE_SIZE_2340;
+        mode |= CDROM_MODE_SIZE_2340 ;
     if (doubleSpeed)
         mode |= CDROM_MODE_SPEED_2X;
 
     cdrom_convertLBAToMSF(&msf, lba);
-    issueCDROMCommand(CDROM_CMD_SETMODE , &mode, sizeof(mode));
+    issueCDROMCommand(CDROM_CMD_SETMODE, &mode, sizeof(mode));
     waitForINT3();
-    issueCDROMCommand(CDROM_CMD_SETLOC, (const uint8_t *)&msf, sizeof(msf));
+    issueCDROMCommand(CDROM_CMD_SETLOC , (const uint8_t *)&msf, sizeof(msf));
     waitForINT3();
-    issueCDROMCommand(CDROM_CMD_READ_N, NULL, 0);
+    issueCDROMCommand(CDROM_CMD_READ_N  , NULL, 0);
     waitForINT3();
     if(wait){
         while(cdromReadDataNumSectors > 0){
@@ -295,5 +204,4 @@ void cdromINT5(void){
     waitingForInt5 = false;
     return;
 }
-
 

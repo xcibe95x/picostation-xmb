@@ -19,6 +19,10 @@ typedef void (*ArgFunction)(void *arg);
 extern "C" {
 #endif
 
+static inline int min(int a, int b){
+	return (a < b) ? a : b;
+}
+
 /**
  * @brief Read-only pointer to the currently running thread.
  */
@@ -38,7 +42,8 @@ extern Thread *nextThread;
  * immediately.
  */
 static inline void enableInterrupts(void) {
-	cop0_setSR(cop0_getSR() | COP0_SR_IEc);
+//	cop0_setSR(cop0_getSR() | COP0_STATUS_IEc);
+	cop0_setReg(COP0_STATUS, cop0_getReg(COP0_STATUS) | COP0_STATUS_IEc );
 }
 
 /**
@@ -50,10 +55,12 @@ static inline void enableInterrupts(void) {
  * @return True if interrupts were previously enabled, false otherwise
  */
 static inline bool disableInterrupts(void) {
-	uint32_t sr = cop0_getSR();
+//	uint32_t sr = cop0_getSR();
+	uint32_t sr = cop0_getReg(COP0_STATUS);
 
-	cop0_setSR(sr & ~COP0_SR_IEc);
-	return (sr & COP0_SR_IEc);
+//	cop0_setSR(sr & ~COP0_STATUS_IEc);
+	cop0_setReg(COP0_STATUS, sr & ~COP0_STATUS_IEc ); 
+	return (sr & COP0_STATUS_IEc);
 }
 
 /**
@@ -80,7 +87,7 @@ __attribute__((always_inline)) static inline void flushWriteQueue(void) {
 static inline void initThread(
 	Thread *thread, ArgFunction func, void *arg, void *stack
 ) {
-	register uint32_t gp __asm__("gp");
+	register uint32_t gp = 0; __asm__("gp");
 
 	thread->pc = (uint32_t) func;
 	thread->a0 = (uint32_t) arg;
@@ -144,7 +151,7 @@ void softReset(void);
  *
  * @param time
  */
-void delayMicroseconds(int time);
+static void delayMicroseconds(int time);
 
 /**
  * @brief Blocks for (roughly) the specified number of microseconds. This

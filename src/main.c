@@ -36,12 +36,17 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-#include "gpu.h"
 #include "ps1/gpucmd.h"
 #include "ps1/registers.h"
+#include "ps1/cdrom.h"
+#include "includes/rama.c"
+#include "includes/cdrom.h"
+#include "includes/filesystem.h"
+
+#include "gpu.h"
 #include "controller.c"
-#include "cdrom.c"
-#include "filesystem.c"
+
+//#include "includes/irq.h"
 
 
 // In order to pick sprites (characters) out of our spritesheet, we need a table
@@ -227,6 +232,30 @@ extern const uint8_t fontTexture[], fontPalette[], piTexture[];
 #define MAX_LINES 3000   // Maksimum satır sayısı
 #define MAX_LENGTH 31
 
+/*
+size_t file_load(const char *name, void *sectorBuffer){
+	uint32_t modelLba;
+	
+	
+	modelLba = getLbaToFile(name);
+	if(!modelLba){
+		printf("File not found\n");
+		return 1;
+	}
+
+	startCDROMRead(
+		modelLba,
+		sectorBuffer,
+		1,
+		2048,
+		true,
+		true
+	);
+
+
+	return 0;
+}
+	*/
 
 void parseLines(char *dataBuffer, char lines[MAX_LINES][MAX_LENGTH], int *lineCount) {
     if (!dataBuffer) {
@@ -273,7 +302,9 @@ uint8_t test[] = {0x50, 0xfa, 0xf0,0xf1} ;
 int main(int argc, const char **argv) {
 	initSerialIO(115200);
 	initControllerBus();
-	//initFilesystem(); freezes
+	initCDROM();
+	initFilesystem(); 
+
 
 
 	if ((GPU_GP1 & GP1_STAT_FB_MODE_BITMASK) == GP1_STAT_FB_MODE_PAL) {
@@ -319,31 +350,10 @@ int main(int argc, const char **argv) {
     //uint16_t sectorBuffer[1024];
     
     
-	size_t file_load(const char *name, void *sectorBuffer){
-		uint32_t modelLba;
-		
-		
-		modelLba = getLbaToFile(name);
-		if(!modelLba){
-			printf("File not found\n");
-			return 1;
-		}
-	
-		startCDROMRead(
-			modelLba,
-			sectorBuffer,
-			1,
-			2048,
-			true,
-			true
-		);
 
-	
-		return 0;
-	}
 
-	uint16_t txtBuffer[1024];
-	file_load("PICO.DAT", txtBuffer);
+	//uint16_t txtBuffer[1024];
+	//file_load("PICO.DAT", txtBuffer);
 
 	
 
@@ -387,9 +397,7 @@ int main(int argc, const char **argv) {
                 if(startnumber - selectedindex == 0){
                     startnumber = startnumber - 1;
                 }
-				for (int i = 0; i < 5; i++)
-    				waitForVSync();
-            }
+			}
         }
         if((!((previousbuttons >> 6) & 1)) && ((buttons >> 6) & 1))    {
             if (selectedindex < lineCount){
@@ -397,18 +405,14 @@ int main(int argc, const char **argv) {
                 if(selectedindex > 25){
                     startnumber = selectedindex - 25;
                 }
-				for (int i = 0; i < 5; i++)
-    				waitForVSync();
-            }
+			}
         }
 
         if((!((previousbuttons >> 5) & 1)) && ((buttons >> 5) & 1))    {
             if (selectedindex < lineCount - 25){
                 selectedindex = selectedindex +25;
                 startnumber = startnumber+25;
-				for (int i = 0; i < 5; i++)
-    				waitForVSync();
-            }
+			}
         }
 
 
@@ -420,9 +424,7 @@ int main(int argc, const char **argv) {
                 } else {
                     startnumber = startnumber - 25;
                 }
-				for (int i = 0; i < 5; i++)
-    				waitForVSync();
-            }
+			}
         }
 
         if((!((previousbuttons >> 3) & 1)) && ((buttons >> 3) & 1))    {

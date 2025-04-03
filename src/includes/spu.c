@@ -4,7 +4,8 @@
 #include "filesystem.h"
 #include "spu.h"
 #include "ps1/registers.h"
-#include "ps1/system.h"
+#include "system.h"
+#include "cdrom.c"
 
 /* Basic API */
 
