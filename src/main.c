@@ -305,11 +305,12 @@ char lines[MAX_LINES][MAX_LENGTH];
 int lineCount = 0;
 uint8_t test[] = {0x50, 0xfa, 0xf0,0xf1} ;
 int main(int argc, const char **argv) {
+	initIRQ();
 	initSerialIO(115200);
 	initControllerBus();
-	initIRQ();
+	initFilesystem(); 
 	initCDROM();
-	//initFilesystem(); 
+
 
 
 
@@ -357,7 +358,7 @@ int main(int argc, const char **argv) {
     
     
 	uint16_t txtBuffer[1024];
-	file_load("PICO.DAT", txtBuffer);
+	//file_load("PICO.DAT", txtBuffer);
 
 
 	
@@ -434,11 +435,11 @@ int main(int argc, const char **argv) {
 
         if((!((previousbuttons >> 3) & 1)) && ((buttons >> 3) & 1))    {
                 printf("DEBUG: selectedindex :%d\n", selectedindex);
-				/* SpicyJPEG's code 
-				uint8_t test[] = {0x50, 0xd1, 0xab,0xfe} ;
-				issueCDROMCommand(0x19,test,sizeof(test));
-				*/
-				/* Rama's code */
+	//			 SpicyJPEG's code 
+	//			uint8_t test[] = {0x50, 0xd1, 0xab,0xfe} ;
+	//			issueCDROMCommand(0x19,test,sizeof(test));
+				
+	//			 Rama's code 
 				StartCommand();
 				WriteParam( 0x50 );
 				WriteParam( 0xf2 );
@@ -450,23 +451,23 @@ int main(int argc, const char **argv) {
 
 		if((!((previousbuttons >> 14) & 1)) && ((buttons >> 14) & 1))    {
 			printf("DEBUG:X selectedindex  :%d\n", selectedindex);
-			/* SpicyJPEG's code */
+		//	 SpicyJPEG's code 
 			uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xf2, selectedindex} ;
 			issueCDROMCommand(CDROM_CMD_TEST ,test,sizeof(test));
 			
-			/* Rama's code 
-			StartCommand();
-			WriteParam( 0x50 );
-			WriteParam( 0xd1 );
-			WriteParam( 0xab );
-			WriteParam( 0xfe );
-			WriteCommand( 0x19 );
-			AckWithTimeout(500000);*/
+	//		 Rama's code 
+	//		StartCommand();
+	//		WriteParam( 0x50 );
+	//		WriteParam( 0xd1 );
+	//		WriteParam( 0xab );
+	//		WriteParam( 0xfe );
+	//		WriteCommand( 0x19 );
+	//		AckWithTimeout(500000);
 		}
 
 		if((!((previousbuttons >> 12) & 1)) && ((buttons >> 12) & 1))    {
 			printf("DEBUG:X selectedindex  :%d\n", selectedindex);
-			/* reset */
+		//	 reset 
 			uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xfa, 0xBE, 0xEF} ;
 			issueCDROMCommand(CDROM_CMD_TEST,test,sizeof(test));
 			
@@ -522,19 +523,19 @@ int main(int argc, const char **argv) {
 
 
 
-	/*	char printBuffer[1024];
+	//	char printBuffer[1024];
 
-    	sprintf(printBuffer, "%i", modelLba);
-		printf("LBA: %i \n", modelLba);
+   // 	sprintf(printBuffer, "%i", modelLba);
+	//	printf("LBA: %i \n", modelLba);
 
-		printString(chain, &font, 56,100, printBuffer);
+	//	printString(chain, &font, 56,100, printBuffer);
  
-*/
 
 
 
 
-		
+
+
 
 		*(chain->nextPacket) = gp0_endTag(0);
 
