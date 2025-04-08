@@ -38,8 +38,9 @@
  #include <stdint.h>
 
  #include "ps1/registers.h"
-
- static void delayMicroseconds(int time) {
+ #include "controller.h"
+ #include "includes/system.h"
+ /*void delayMicroseconds(int time) {
     // Calculate the approximate number of CPU cycles that need to be burned,
     // assuming a 33.8688 MHz clock (1 us = 33.8688 = ~33.875 = 271 / 8 cycles).
     // The loop consists of a branch and a decrement, thus each iteration will
@@ -59,9 +60,9 @@
         ".set pop\n"
         : "+r"(time)
     );
-}
+} */
  
- static void initControllerBus(void) {
+ void initControllerBus(void) {
      // Reset the serial interface, initialize it with the settings used by
      // controllers and memory cards (250000bps, 8 data bits) and configure it to
      // send a signal to the interrupt controller whenever the DSR input is
@@ -78,7 +79,7 @@
          | SIO_CTRL_DSR_IRQ_ENABLE;
  }
  
- static bool waitForAcknowledge(int timeout) {
+bool waitForAcknowledge(int timeout) {
      // Controllers and memory cards will acknowledge bytes received by sending
      // short pulses over the DSR line, which will be forwarded by the serial
      // interface to the interrupt controller. This is not guaranteed to happen
@@ -100,40 +101,12 @@
      return false;
  }
  
- // As the controller bus is shared with memory cards, an addressing mechanism is
- // used to ensure packets are processed by a single device at a time. The first
- // byte of each request packet is thus the "address" of the peripheral that
- // shall respond to it.
- typedef enum {
-     ADDR_CONTROLLER  = 0x01,
-     ADDR_MEMORY_CARD = 0x81
- } DeviceAddress;
- 
- // The address is followed by a command byte and any required parameters. The
- // only command used in this example (and supported by all controllers) is
- // CMD_POLL, however some controllers additionally support a "configuration
- // mode" which grants access to an extended command set.
- typedef enum {
-     CMD_INIT_PRESSURE   = '@', // Initialize DualShock pressure sensors (config)
-     CMD_POLL            = 'B', // Read controller state
-     CMD_CONFIG_MODE     = 'C', // Enter or exit configuration mode
-     CMD_SET_ANALOG      = 'D', // Set analog mode/LED state (config)
-     CMD_GET_ANALOG      = 'E', // Get analog mode/LED state (config)
-     CMD_GET_MOTOR_INFO  = 'F', // Get information about a motor (config)
-     CMD_GET_MOTOR_LIST  = 'G', // Get list of all motors (config)
-     CMD_GET_MOTOR_STATE = 'H', // Get current state of vibration motors (config)
-     CMD_GET_MODE        = 'L', // Get list of all supported modes (config)
-     CMD_REQUEST_CONFIG  = 'M', // Configure poll request format (config)
-     CMD_RESPONSE_CONFIG = 'O', // Configure poll response format (config)
-     CMD_CARD_READ       = 'R', // Read 128-byte memory card sector
-     CMD_CARD_IDENTIFY   = 'S', // Retrieve memory card size information
-     CMD_CARD_WRITE      = 'W'  // Write 128-byte memory card sector
- } DeviceCommand;
+
  
  #define DTR_DELAY   60
  #define DSR_TIMEOUT 120
  
- static void selectPort(int port) {
+ void selectPort(int port) {
      // Set or clear the bit that controls which set of controller and memory
      // card ports is going to have its DTR (port select) signal asserted. The
      // actual serial bus is shared between all ports, however devices will not
@@ -144,7 +117,7 @@
          SIO_CTRL(0) &= ~SIO_CTRL_CS_PORT_2;
  }
  
- static uint8_t exchangeByte(uint8_t value) {
+ uint8_t exchangeByte(uint8_t value) {
      // Wait until the interface is ready to accept a byte to send, then wait for
      // it to finish receiving the byte sent by the device.
      while (!(SIO_STAT(0) & SIO_STAT_TX_NOT_FULL))
@@ -158,7 +131,7 @@
      return SIO_DATA(0);
  }
  
- static int exchangePacket(
+ int exchangePacket(
      DeviceAddress address, const uint8_t *request, uint8_t *response,
      int reqLength, int maxRespLength
  ) {
@@ -250,7 +223,7 @@
      "Square"    // Bit 15
  };
  
- static uint16_t getButtonPress(int port) {
+ uint16_t getButtonPress(int port) {
      // Build the request packet.
      uint8_t request[4], response[8];
 

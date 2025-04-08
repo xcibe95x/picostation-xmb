@@ -20,7 +20,7 @@
       "executable": "${workspaceRoot}/build/picostation-loader.elf",
       "autorun": [
         "monitor reset shellhalt",
-        "load build/picoloader.cue",
+        "load build/picostation-loader.elf",
         "tbreak main",
         "continue"
       ]
