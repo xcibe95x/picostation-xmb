@@ -244,7 +244,7 @@ size_t file_load(const char *name, void *sectorBuffer){
 		return 1;
 	} else {
 	printf("found file\n");
-	printf("%d", modelLba);
+	printf("LBA: %d", modelLba);
 
 		loadchecker = 1;
 	}
@@ -257,6 +257,25 @@ size_t file_load(const char *name, void *sectorBuffer){
 		true,
 		true
 	);
+
+
+	return 0;
+}
+
+size_t list_load(void *sectorBuffer){
+
+	uint8_t test[] = {0x50, 0xf1} ;
+	issueCDROMCommand(CDROM_CMD_TEST,test,sizeof(test));
+
+	startCDROMRead(
+		100,
+		sectorBuffer,
+		1,
+		2048,
+		true,
+		true
+	);
+	printf("buffer %s\n",sectorBuffer);
 
 
 	return 0;
@@ -337,20 +356,22 @@ int main(int argc, const char **argv) {
 	DMAChain dmaChains[2];
 	bool     usingSecondFrame = false;
 
-	//uint8_t test[] = {0x50, 0xf1,0x00,0x00} ;
-	//issueCDROMCommand(CDROM_CMD_TEST,test,sizeof(test));
 
-	char text[2048] = "Game\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\n";
+
+	//char text[2048] = "Game\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\n";
 
 	char txtBuffer[1024];
-	//file_load("PICO.DAT;1", txtBuffer);
-
+	//char txtBuffer2[1024];
+	//file_load("SYSTEM.CNF;1", txtBuffer2);
+	//file_load("PICO.DAT;1", txtBuffer2);
+	
+	list_load(txtBuffer);
     int selectedindex = 1;
 
     char lines[MAX_LINES][MAX_LENGTH];
     int lineCount = 0;
     
-    parseLines((char *)text, lines, &lineCount);
+    parseLines((char *)txtBuffer, lines, &lineCount);
     int startnumber = 0;
 	printf("%s", txtBuffer);
 
@@ -478,6 +499,7 @@ int main(int argc, const char **argv) {
 
 		if(pressedButtons & BUTTON_MASK_CIRCLE)    {
 			printf("debug message \n");
+			list_load(txtBuffer);
 		}
 		
 		if(pressedButtons & BUTTON_MASK_SELECT)    {
