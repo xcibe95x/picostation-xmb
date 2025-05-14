@@ -20,7 +20,7 @@
 #include "ps1/gpucmd.h"
 
 #define DMA_MAX_CHUNK_SIZE 16
-#define CHAIN_BUFFER_SIZE  2048
+#define CHAIN_BUFFER_SIZE  16384
 
 typedef struct {
 	uint32_t data[CHAIN_BUFFER_SIZE];

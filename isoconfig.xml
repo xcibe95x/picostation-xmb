@@ -87,7 +87,7 @@
             <file name="system.cnf" type="data" source="system.cnf"/>
             <file name="SCES_313.37"   type="data" source="build/picostation-loader.psexe"/>
             <file name="PICO.DAT"   type="data" source="PICO.DAT"/>
-            <dummy sectors="1024"/>
+            <dummy sectors="16"/>
             
             <!-- <dir>
                     Specifies a directory in the directory tree. <file> and <dir> elements inside the element

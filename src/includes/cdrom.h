@@ -45,3 +45,4 @@ void cdromINT2(void);
 void cdromINT3(void);
 void cdromINT4(void);
 void cdromINT5(void);
+size_t file_load(const char *name, void *sectorBuffer);

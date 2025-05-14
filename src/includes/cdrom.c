@@ -5,7 +5,7 @@
 #include "string.h"
 
 #include "ps1/registers.h"
-
+#include "filesystem.h"
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -118,6 +118,12 @@ void waitForINT3(){
     }
 }
 
+void waitForINT5(){
+    while(waitingForInt5){
+        __asm__ volatile("");
+    }
+}
+
 
 /// @brief 
 /// @param lba LBA of the sector to read
@@ -139,12 +145,18 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
     if (doubleSpeed)
         mode |= CDROM_MODE_SPEED_2X;
 
+
     cdrom_convertLBAToMSF(&msf, lba);
+
+    printf("LBA Set: %d (%02x:%02x:%02x), issue setmode\n", lba, msf.minute, msf.second, msf.frame);
+    
     issueCDROMCommand(CDROM_CMD_SETMODE, &mode, sizeof(mode));
     waitForINT3();
+    printf("Issue SETLOC\n");
     issueCDROMCommand(CDROM_CMD_SETLOC , (const uint8_t *)&msf, sizeof(msf));
     waitForINT3();
-    issueCDROMCommand(CDROM_CMD_READ_N  , NULL, 0);
+    printf("Issue CDREAD\n");
+    issueCDROMCommand(CDROM_CMD_READ_S  , NULL, 0);
     waitForINT3();
     if(wait){
         while(cdromReadDataNumSectors > 0){
@@ -153,6 +165,7 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
         }
         waitForINT2();
     }
+    printf("Finish read\n");
 }
 
 // Data is ready to be read from the CDROM via DMA.
@@ -203,5 +216,32 @@ void cdromINT4(void){
 void cdromINT5(void){
     waitingForInt5 = false;
     return;
+}
+
+size_t file_load(const char *name, void *sectorBuffer){
+	uint32_t modelLba;
+	
+	
+	modelLba = getLbaToFile(name);
+	if(!modelLba){
+		printf("File not found\n");
+
+		return 1;
+	} else {
+	printf("found file\n");
+	printf("LBA: %d", modelLba);
+	}
+
+	startCDROMRead(
+		modelLba,
+		sectorBuffer,
+		1,
+		2048,
+		true,
+		true
+	);
+
+
+	return 0;
 }
 

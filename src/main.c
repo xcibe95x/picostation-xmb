@@ -43,9 +43,11 @@
 #include "includes/cdrom.h"
 #include "includes/filesystem.h"
 #include "includes/irq.h"
-#include "includes/system.h"
 #include "gpu.h"
 #include "controller.h"
+#include "includes/system.h"
+
+
 
 
 
@@ -233,30 +235,22 @@ extern const uint8_t fontTexture[], fontPalette[], piTexture[];
 #define MAX_LENGTH 31
 
 int loadchecker = 0;
-size_t file_load(const char *name, void *sectorBuffer){
-	uint32_t modelLba;
-	
-	
-	modelLba = getLbaToFile(name);
-	if(!modelLba){
-		printf("File not found\n");
 
-		return 1;
-	} else {
-	printf("found file\n");
-	printf("%d", modelLba);
 
-		loadchecker = 1;
-	}
+size_t list_load(void *sectorBuffer, int LBA){
+
+	uint8_t test[] = {0x50, 0xf1} ;
+	issueCDROMCommand(CDROM_CMD_TEST,test,sizeof(test));
 
 	startCDROMRead(
-		modelLba,
+		LBA,
 		sectorBuffer,
 		1,
-		2048,
+		2324,
 		true,
 		true
 	);
+	printf("buffer %s\n",sectorBuffer);
 
 
 	return 0;
@@ -302,6 +296,7 @@ void parseLines(char *dataBuffer, char lines[MAX_LINES][MAX_LENGTH], int *lineCo
 
 
 
+
 char lines[MAX_LINES][MAX_LENGTH];
 int lineCount = 0;
 uint8_t test[] = {0x50, 0xfa, 0xf0,0xf1} ;
@@ -337,22 +332,26 @@ int main(int argc, const char **argv) {
 	DMAChain dmaChains[2];
 	bool     usingSecondFrame = false;
 
-	//uint8_t test[] = {0x50, 0xf1,0x00,0x00} ;
-	//issueCDROMCommand(CDROM_CMD_TEST,test,sizeof(test));
 
-	char text[2048] = "Game\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\n";
+	//dummy list
+	//char text[2048] = "Game\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\n";
 
-	char txtBuffer[1024];
-	//file_load("PICO.DAT;1", txtBuffer);
+	char txtBuffer[2324];
 
-    int selectedindex = 1;
+	//file_load("SYSTEM.CNF;1", txtBuffer2);
+
+	//printf("format s %s\n", txtBuffer2);
+///
+
+	list_load(txtBuffer, 100);
+	//printf("disk buffer %s\n", txtBuffer);
+    uint16_t selectedindex = 1;
 
     char lines[MAX_LINES][MAX_LENGTH];
     int lineCount = 0;
-    
-    parseLines((char *)text, lines, &lineCount);
+    //
+    parseLines((char *)txtBuffer, lines, &lineCount);
     int startnumber = 0;
-	printf("%s", txtBuffer);
 
 
     //uint16_t sectorBuffer[1024];
@@ -364,6 +363,7 @@ int main(int argc, const char **argv) {
 	int creditsmenu = 0;
 
 	uint16_t previousButtons = getButtonPress(0);
+
 	for (;;) {
 		int bufferX = usingSecondFrame ? SCREEN_WIDTH : 0;
 		int bufferY = 0;
@@ -397,93 +397,99 @@ int main(int argc, const char **argv) {
 		uint16_t buttons = getButtonPress(0);
 		uint16_t pressedButtons = ~previousButtons & buttons;
 
+
 		if (creditsmenu == 0){
-		if(pressedButtons & BUTTON_MASK_UP)   {
-            if (selectedindex > 1){
-                selectedindex = selectedindex - 1;
-                if(startnumber - selectedindex == 0){
-                    startnumber = startnumber - 1;
-                }
+			if(pressedButtons & BUTTON_MASK_UP)   {
+				if (selectedindex > 1){
+					selectedindex = selectedindex - 1;
+					if(startnumber - selectedindex == 0){
+						startnumber = startnumber - 1;
+					}
+				}
 			}
-        }
-        if(pressedButtons & BUTTON_MASK_DOWN)    {
-            if (selectedindex < lineCount){
-                selectedindex = selectedindex + 1;
-                if(selectedindex > 20){
-                    startnumber = selectedindex - 20;
-                }
+			if(pressedButtons & BUTTON_MASK_DOWN)    {
+				printf("DEBUG:DOWN  :%d\n", selectedindex);
+				if (selectedindex < lineCount){
+					selectedindex = selectedindex + 1;
+					if(selectedindex > 20){
+						startnumber = selectedindex - 20;
+					}
+				}
 			}
-        }
 
-        if(pressedButtons & BUTTON_MASK_RIGHT)    {
-            if (selectedindex < lineCount - 20){
-                selectedindex = selectedindex +20;
-                startnumber = startnumber+20;
+			if(pressedButtons & BUTTON_MASK_RIGHT)    {
+				if (selectedindex < lineCount - 20){
+					selectedindex = selectedindex +20;
+					startnumber = startnumber+20;
+				}
 			}
-        }
 
 
-        if(pressedButtons & BUTTON_MASK_LEFT)    {
-            if (selectedindex > 20){
-                selectedindex = selectedindex - 20;
-                if (startnumber-20 <= 0){
-                    startnumber = 0;
-                } else {
-                    startnumber = startnumber - 20;
-                }
+			if(pressedButtons & BUTTON_MASK_LEFT)    {
+				if (selectedindex > 20){
+					selectedindex = selectedindex - 20;
+					if (startnumber-20 <= 0){
+						startnumber = 0;
+					} else {
+						startnumber = startnumber - 20;
+					}
+				}
 			}
-        }
 
-        if(pressedButtons & BUTTON_MASK_START)    {
-                printf("DEBUG: selectedindex :%d\n", selectedindex);
-	//			 SpicyJPEG's code 
-	//			uint8_t test[] = {0x50, 0xd1, 0xab,0xfe} ;
-	//			issueCDROMCommand(0x19,test,sizeof(test));
+			if(pressedButtons & BUTTON_MASK_START)    {
+					printf("DEBUG: selectedindex :%d\n", selectedindex);
+		//			 SpicyJPEG's code 
+		//			uint8_t test[] = {0x50, 0xd1, 0xab,0xfe} ;
+		//			issueCDROMCommand(0x19,test,sizeof(test));
+					
+		//			 Rama's code 
+		//			StartCommand();
+			//		WriteParam( 0x50 );
+			//		WriteParam( 0xf2 );
+			//		WriteParam( selectedindex );
+					//WriteParam( 0xf1 );
+			//		WriteCommand( 0x19 );
+				//	AckWithTimeout(500000);
+			}
+
+			if(pressedButtons & BUTTON_MASK_X)    {
+				printf("DEBUG:X selectedindex  :%d\n", selectedindex);
+				uint8_t high = (selectedindex >> 8) & 0xFF; // üst 8 bit
+				uint8_t low  = selectedindex & 0xFF; 
+				printf("High: %x, low: %x", high,low);
+			//	 SpicyJPEG's code 
+				uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xF2, high, low} ;
+				issueCDROMCommand(CDROM_CMD_TEST ,test,sizeof(test));
+
+				softReset();
 				
-	//			 Rama's code 
-	//			StartCommand();
+		//		 Rama's code 
+		//		StartCommand();
 		//		WriteParam( 0x50 );
-		//		WriteParam( 0xf2 );
-		//		WriteParam( selectedindex );
-				//WriteParam( 0xf1 );
+		//		WriteParam( 0xd1 );
+		//		WriteParam( 0xab );
+		//		WriteParam( 0xfe );
 		//		WriteCommand( 0x19 );
-			//	AckWithTimeout(500000);
-        }
+		//		AckWithTimeout(500000);
+			}
 
-		if(pressedButtons & BUTTON_MASK_X)    {
-			printf("DEBUG:X selectedindex  :%d\n", selectedindex);
-		//	 SpicyJPEG's code 
-			uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xf2, selectedindex} ;
-			issueCDROMCommand(CDROM_CMD_TEST ,test,sizeof(test));
-			softReset();
-	//		 Rama's code 
-	//		StartCommand();
-	//		WriteParam( 0x50 );
-	//		WriteParam( 0xd1 );
-	//		WriteParam( 0xab );
-	//		WriteParam( 0xfe );
-	//		WriteCommand( 0x19 );
-	//		AckWithTimeout(500000);
-		}
+			if(pressedButtons & BUTTON_MASK_TRIANGLE)    {
+				printf("DEBUG:X selectedindex  :%d\n", selectedindex);
+			//	 reset 
+				uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xfa, 0xBE, 0xEF} ;
+				issueCDROMCommand(CDROM_CMD_TEST,test,sizeof(test));
+				
+			}
 
-		if(pressedButtons & BUTTON_MASK_TRIANGLE)    {
-			printf("DEBUG:X selectedindex  :%d\n", selectedindex);
-		//	 reset 
-			uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xfa, 0xBE, 0xEF} ;
-			issueCDROMCommand(CDROM_CMD_TEST,test,sizeof(test));
+
+
+
 			
-		}
+			if(pressedButtons & BUTTON_MASK_SELECT)    {
+				creditsmenu = 1;
+			}
 
 
-
-		if(pressedButtons & BUTTON_MASK_CIRCLE)    {
-			printf("debug message \n");
-		}
-		
-		if(pressedButtons & BUTTON_MASK_SELECT)    {
-			creditsmenu = 1;
-		}
-	
 	//char strbuffer[1024];
 
 			//snprintf(strbuffer, sizeof(strbuffer), "%s", txtBuffer);
@@ -501,53 +507,53 @@ int main(int argc, const char **argv) {
 
 		
 		
-		printString(
-			chain, &font, 16, 10,
-			"Picostation Game Loader"
-		);
+			printString(
+				chain, &font, 16, 10,
+				"Picostation Game Loader"
+			);
 
-		char fbuffer[32];
-		snprintf(fbuffer, sizeof(fbuffer), "%b, index: %i",usingSecondFrame, selectedindex);
-		printString(chain, &font, 206, 10, fbuffer);	
+			char fbuffer[32];
+			snprintf(fbuffer, sizeof(fbuffer), "%b, index: %i",usingSecondFrame, selectedindex);
+			printString(chain, &font, 206, 10, fbuffer);	
 
-		for (int i = startnumber; i < startnumber + 20; i++) {
-        
-			char buffer[32];
+			for (int i = startnumber; i < startnumber + 20; i++) {
+			
+				char buffer[32];
 
-			snprintf(buffer, sizeof(buffer), "%i -%s", i+1, lines[i]);
-			printString(chain, &font, 12, 30+(i-startnumber)*10, buffer);	
+				snprintf(buffer, sizeof(buffer), "%i -%s", i+1, lines[i]);
+				printString(chain, &font, 12, 30+(i-startnumber)*10, buffer);	
 
-			if(i + 1 == selectedindex){
+				if(i + 1 == selectedindex){
 
-				printString(
-					chain, &font, 5, 30+(i-startnumber)*10,
-					">"
-				);
+					printString(
+						chain, &font, 5, 30+(i-startnumber)*10,
+						">"
+					);
 
+				}
+				if(i == lineCount- 1 ){
+					break;
+				}
 			}
-			if(i == lineCount- 1 ){
-				break;
+		} else {
+			printString(
+				chain, &font, 40, 40,
+				"Picostation Game Loader Alpha Release"
+			);
+			printString(
+				chain, &font, 40, 80,
+				"Huge thanks to Rama, Skitchin, SpicyJpeg,\nDanhans42, NicholasNoble and ChatGPT"
+			);
+
+			printString(
+				chain, &font, 40, 120,
+				"https://github.com/raijin/picostation-loader"
+			);
+
+			if(pressedButtons & BUTTON_MASK_CIRCLE)    {
+				creditsmenu = 0;
 			}
 		}
-	} else {
-		printString(
-			chain, &font, 40, 40,
-			"Picostation Game Loader Alpha Release"
-		);
-		printString(
-			chain, &font, 40, 80,
-			"Huge thanks to Rama, Skitchin, SpicyJpeg,\nDanhans42, NicholasNoble and ChatGPT"
-		);
-
-		printString(
-			chain, &font, 40, 120,
-			"https://github.com/raijin/picostation-loader"
-		);
-
-		if(pressedButtons & BUTTON_MASK_CIRCLE)    {
-			creditsmenu = 0;
-		}
-	}
 
 
 	//	char printBuffer[1024];
