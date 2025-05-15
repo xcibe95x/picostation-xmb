@@ -10,7 +10,7 @@ This loader is not currently working by itself. For this to work, i am making mi
 There are still missing features and bugs exists all around it, so be careful while using it.
 
 
-## Follow picostation developments here
+### Follow picostation developments here
 ### https://github.com/johnbaumann/picostation
 
 This project uses Spicyjpeg's ps1 bare metal. Also contains a lot of copy paste from Rhys-Baker's demo bare metal project so take a look!
