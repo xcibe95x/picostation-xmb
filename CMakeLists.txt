@@ -25,23 +25,23 @@ include(ps1-bare-metal/cmake/virtualenv.cmake)
 # this library into our executable.
 add_library(
     common OBJECT
-    ps1-bare-metal/src/libc/clz.s
-    ps1-bare-metal/src/libc/crt0.c
-    ps1-bare-metal/src/libc/cxxsupport.cpp
-    ps1-bare-metal/src/libc/malloc.c
-    ps1-bare-metal/src/libc/misc.c
-    ps1-bare-metal/src/libc/setjmp.s
-    ps1-bare-metal/src/libc/string.c
-    ps1-bare-metal/src/libc/string.s
-    ps1-bare-metal/src/ps1/cache.s
-    ps1-bare-metal/src/vendor/printf.c
+    ps1-bare-metal/libc/clz.s
+    ps1-bare-metal/libc/crt0.c
+    ps1-bare-metal/libc/cxxsupport.cpp
+    ps1-bare-metal/libc/malloc.c
+    ps1-bare-metal/libc/misc.c
+    ps1-bare-metal/libc/setjmp.s
+    ps1-bare-metal/libc/string.c
+    ps1-bare-metal/libc/string.s
+    ps1-bare-metal/ps1/cache.s
+    ps1-bare-metal/vendor/printf.c
     src/includes/system.s
     src/includes/unhandledexc.c
 )
 target_include_directories(
     common PUBLIC
-    ps1-bare-metal/src
-    ps1-bare-metal/src/libc
+    ps1-bare-metal/
+    ps1-bare-metal/libc
 )
 
 # Compile the main executable. You may add more source files by listing them

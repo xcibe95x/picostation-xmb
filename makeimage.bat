@@ -1,2 +1,2 @@
-mkpsxiso -y ./isoconfig.xml
+mkpsxiso -y ../isoconfig.xml
 @pause

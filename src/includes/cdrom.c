@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include "filesystem.h"
 
 
 volatile bool waitingForInt1;
@@ -212,3 +213,48 @@ void cdromINT5(void){
     return;
 }
 
+size_t file_load(const char *name, void *sectorBuffer){
+	uint32_t modelLba;
+	
+	
+	modelLba = getLbaToFile(name);
+	if(!modelLba){
+		printf("File not found\n");
+
+		return 1;
+	} else {
+	printf("found file\n");
+	printf("LBA: %d", modelLba);
+	}
+
+	startCDROMRead(
+		modelLba,
+		sectorBuffer,
+		1,
+		2048,
+		true,
+		true
+	);
+
+
+	return 0;
+}
+
+size_t list_load(void *sectorBuffer){
+
+	uint8_t test[] = {0x50, 0xf1} ;
+	issueCDROMCommand(CDROM_CMD_TEST,test,sizeof(test));
+
+	startCDROMRead(
+		100,
+		sectorBuffer,
+		1,
+		2048,
+		true,
+		true
+	);
+	printf("buffer %s\n",sectorBuffer);
+
+
+	return 0;
+}

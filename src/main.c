@@ -1,36 +1,7 @@
 /*
- * ps1-bare-metal - (C) 2023 spicyjpeg
+ * picostation menu loader
+ * Raijin 2025
  *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
- * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
- * AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
- * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
- * OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
- *
- *
- * We saw how to load a single texture and display it in the last two examples.
- * Textures, however, are not always simple images displayed in their entirety:
- * sometimes they hold more than one image (e.g. all frames of a character's
- * animation in a 2D game) but are "cropped out" on the fly during rendering to
- * only draw a single frame at a time. These textures are known as spritesheets
- * and the PS1's GPU fully supports them, as it allows for arbitrary UV
- * coordinates to be used.
- *
- * This example is going to show how to implement a simple font system for text
- * rendering, since that's one of the most common use cases for spritesheets. We
- * are going to load a single texture containing all our font's characters, as
- * having hundreds of tiny textures for each character would be extremely
- * inefficient, and then use a lookup table to obtain the UV coordinates, width
- * and height of each character in a string.
- *
- * NOTE: in order to make the code easier to read, I have moved all the
- * GPU-related functions from previous examples to a separate source file.
  */
 
 #include <stdbool.h>
@@ -39,7 +10,6 @@
 #include "ps1/gpucmd.h"
 #include "ps1/registers.h"
 #include "ps1/cdrom.h"
-//#include "includes/rama.c"
 #include "includes/cdrom.h"
 #include "includes/filesystem.h"
 #include "includes/irq.h"
@@ -229,89 +199,40 @@ static void printString(
 
 extern const uint8_t fontTexture[], fontPalette[], piTexture[];
 
-#define MAX_LINES 3000   // Maksimum satır sayısı
+#define MAX_LINES 3000   // Maximum line number
 #define MAX_LENGTH 31
 
-int loadchecker = 0;
-size_t file_load(const char *name, void *sectorBuffer){
-	uint32_t modelLba;
-	
-	
-	modelLba = getLbaToFile(name);
-	if(!modelLba){
-		printf("File not found\n");
-
-		return 1;
-	} else {
-	printf("found file\n");
-	printf("LBA: %d", modelLba);
-
-		loadchecker = 1;
-	}
-
-	startCDROMRead(
-		modelLba,
-		sectorBuffer,
-		1,
-		2048,
-		true,
-		true
-	);
-
-
-	return 0;
-}
-
-size_t list_load(void *sectorBuffer){
-
-	uint8_t test[] = {0x50, 0xf1} ;
-	issueCDROMCommand(CDROM_CMD_TEST,test,sizeof(test));
-
-	startCDROMRead(
-		100,
-		sectorBuffer,
-		1,
-		2048,
-		true,
-		true
-	);
-	printf("buffer %s\n",sectorBuffer);
-
-
-	return 0;
-}
-	
 
 void parseLines(char *dataBuffer, char lines[MAX_LINES][MAX_LENGTH], int *lineCount) {
     if (!dataBuffer) {
         return;
     }
 
-    *lineCount = 0;  // Satır sayısını sıfırla
+    *lineCount = 0; 
     char *start = dataBuffer;
     char *end = dataBuffer;
 
     while (*start != '\0' && *lineCount < MAX_LINES) {
-        // Satır sonunu bul
+        // Find the end of the line
         while (*end != '\n' && *end != '\0') {
             end++;
         }
 
-        // Satırın uzunluğunu hesapla
+        // Calculate line size
         int length = end - start;
         if (length >= MAX_LENGTH) {
             length = MAX_LENGTH - 1;
         }
 
-        // Satırı kopyala
+        // Copy line
         for (int i = 0; i < length; i++) {
             lines[*lineCount][i] = start[i];
         }
-        lines[*lineCount][length] = '\0'; // Null-terminator ekle
+        lines[*lineCount][length] = '\0'; // add Null-terminator
 
         (*lineCount)++;
 
-        // Sonraki satıra geç
+        // To the next line
         if (*end == '\n') {
             end++;
         }
@@ -356,15 +277,8 @@ int main(int argc, const char **argv) {
 	DMAChain dmaChains[2];
 	bool     usingSecondFrame = false;
 
-
-
-	//char text[2048] = "Game\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\n";
-
+	//Make a buffer for list to load, then load the list, parse the names
 	char txtBuffer[1024];
-	//char txtBuffer2[1024];
-	//file_load("SYSTEM.CNF;1", txtBuffer2);
-	//file_load("PICO.DAT;1", txtBuffer2);
-	
 	list_load(txtBuffer);
     int selectedindex = 1;
 
@@ -375,11 +289,9 @@ int main(int argc, const char **argv) {
     int startnumber = 0;
 	printf("%s", txtBuffer);
 
-
-    //uint16_t sectorBuffer[1024];
-    
-    
-
+	// these will be useful when i implement game id broadcast
+	//char txtBuffer2[1024];
+	//file_load("SYSTEM.CNF;1", txtBuffer2);
 
 
 	int creditsmenu = 0;
@@ -414,6 +326,8 @@ int main(int argc, const char **argv) {
 		//get the controller button press
 
 		snprintf(controllerbuffer, sizeof(controllerbuffer), "%i", getButtonPress(0));
+
+		//controller input debugging
 		//printString(chain, &font, 56,100, controllerbuffer);
 		uint16_t buttons = getButtonPress(0);
 		uint16_t pressedButtons = ~previousButtons & buttons;
@@ -456,40 +370,22 @@ int main(int argc, const char **argv) {
         }
 
         if(pressedButtons & BUTTON_MASK_START)    {
-                printf("DEBUG: selectedindex :%d\n", selectedindex);
-	//			 SpicyJPEG's code 
-	//			uint8_t test[] = {0x50, 0xd1, 0xab,0xfe} ;
-	//			issueCDROMCommand(0x19,test,sizeof(test));
-				
-	//			 Rama's code 
-	//			StartCommand();
-		//		WriteParam( 0x50 );
-		//		WriteParam( 0xf2 );
-		//		WriteParam( selectedindex );
-				//WriteParam( 0xf1 );
-		//		WriteCommand( 0x19 );
-			//	AckWithTimeout(500000);
+            printf("DEBUG: selectedindex :%d\n", selectedindex);
+			uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xf2, selectedindex} ;
+			issueCDROMCommand(CDROM_CMD_TEST ,test,sizeof(test));
+			softReset();
         }
 
 		if(pressedButtons & BUTTON_MASK_X)    {
 			printf("DEBUG:X selectedindex  :%d\n", selectedindex);
-		//	 SpicyJPEG's code 
 			uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xf2, selectedindex} ;
 			issueCDROMCommand(CDROM_CMD_TEST ,test,sizeof(test));
 			softReset();
-	//		 Rama's code 
-	//		StartCommand();
-	//		WriteParam( 0x50 );
-	//		WriteParam( 0xd1 );
-	//		WriteParam( 0xab );
-	//		WriteParam( 0xfe );
-	//		WriteCommand( 0x19 );
-	//		AckWithTimeout(500000);
 		}
 
 		if(pressedButtons & BUTTON_MASK_TRIANGLE)    {
+			//this will put pico into bootlader mode
 			printf("DEBUG:X selectedindex  :%d\n", selectedindex);
-		//	 reset 
 			uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xfa, 0xBE, 0xEF} ;
 			issueCDROMCommand(CDROM_CMD_TEST,test,sizeof(test));
 			
@@ -498,39 +394,26 @@ int main(int argc, const char **argv) {
 
 
 		if(pressedButtons & BUTTON_MASK_CIRCLE)    {
-			printf("debug message \n");
-			list_load(txtBuffer);
+			//debugging list load
+			//printf("debug message \n");
+			//list_load(txtBuffer);
 		}
 		
 		if(pressedButtons & BUTTON_MASK_SELECT)    {
 			creditsmenu = 1;
 		}
-	
-	//char strbuffer[1024];
-
-			//snprintf(strbuffer, sizeof(strbuffer), "%s", txtBuffer);
-			//printString(chain, &font, 12, 200, strbuffer);	
-			//printf(strbuffer);
-			//if ( loadchecker == 0){
-			//	printString(chain, &font, 12, 220, "file not found");	
-			//} else {
-			//	printString(chain, &font, 12, 220, "file found actually");
-			//	printf("found file\n");
-			//}
 			
-
-
-
-		
-		
 		printString(
 			chain, &font, 16, 10,
 			"Picostation Game Loader"
 		);
 
+		/*
 		char fbuffer[32];
+		Framebuffer and index debugging
 		snprintf(fbuffer, sizeof(fbuffer), "%b, index: %i",usingSecondFrame, selectedindex);
 		printString(chain, &font, 206, 10, fbuffer);	
+		*/
 
 		for (int i = startnumber; i < startnumber + 20; i++) {
         
@@ -570,19 +453,6 @@ int main(int argc, const char **argv) {
 			creditsmenu = 0;
 		}
 	}
-
-
-	//	char printBuffer[1024];
-
-   // 	sprintf(printBuffer, "%i", modelLba);
-	//	printf("LBA: %i \n", modelLba);
-
-	//	printString(chain, &font, 56,100, printBuffer);
- 
-
-
-
-
 
 		previousButtons = buttons;
 		*(chain->nextPacket) = gp0_endTag(0);

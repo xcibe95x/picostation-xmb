@@ -1,3 +1,10 @@
+/*
+ * zombie code
+ * This also works as a command send function but i will use ps1 bare metal libraries instead
+ * Thanks to rama
+ */
+
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>

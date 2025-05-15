@@ -52,9 +52,4 @@ Mkfile.old
 dkms.conf
 build/
 .cache/
-ps1-bare-metal/
 env/
-unirom_standalone.rom
-unirom_datelv2_withcaetla.rom
-picostation-loader.cue
-picostation-loader.bin
