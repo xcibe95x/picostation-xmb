@@ -6,6 +6,8 @@ cmake_minimum_required(VERSION 3.25)
 # setup.cmake.
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/ps1-bare-metal/cmake/toolchain.cmake")
 
+set(PROJECT_NAME "picostation-loader")
+
 # Tell CMake about the project. The VERSION, DESCRIPTION and HOMEPAGE_URL fields
 # are optional, but the project name and LANGUAGES field should be present.
 project(
@@ -47,7 +49,7 @@ target_include_directories(
 # Compile the main executable. You may add more source files by listing them
 # here.
 add_executable(
-    picostation-loader
+    ${PROJECT_NAME}
     src/gpu.c
     src/main.c
     src/controller.c
@@ -57,7 +59,7 @@ add_executable(
     src/includes/irq.c
     src/includes/stream.c
 )
-target_link_libraries(picostation-loader PRIVATE common)
+target_link_libraries(${PROJECT_NAME} PRIVATE common)
 
 # Define a CMake macro that invokes convertImage.py in order to generate VRAM
 # texture data from an image file.
@@ -90,19 +92,19 @@ addBinaryFile(picostation-loader piPalette "${PROJECT_BINARY_DIR}/piPalette.dat"
 # from the build directory, so paths to files in the source directory must be
 # prefixed with ${PROJECT_SOURCE_DIR}.
 add_custom_command(
-    TARGET     picostation-loader POST_BUILD
-    BYPRODUCTS picostation-loader.psexe
+    TARGET ${PROJECT_NAME} POST_BUILD
+    BYPRODUCTS ${PROJECT_NAME}.psexe
     COMMAND
         "${Python3_EXECUTABLE}"
         "${PROJECT_SOURCE_DIR}/ps1-bare-metal/tools/convertExecutable.py"
         "$<TARGET_FILE:picostation-loader>"
-        picostation-loader.psexe
+        ${PROJECT_NAME}.psexe
     VERBATIM
 )
 
 add_custom_command(
-    TARGET     picostation-loader POST_BUILD
-    COMMAND
-        "${PROJECT_SOURCE_DIR}/make-xiso.bat"
+    TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND "${PROJECT_SOURCE_DIR}/make-xiso.bat"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
     VERBATIM
 )
