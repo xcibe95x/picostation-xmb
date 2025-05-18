@@ -80,8 +80,8 @@ endfunction()
 # Convert the font spritesheet to a 4bpp texture and palette, then embed them
 # into the executable. The addBinaryFile() macro is defined in setup.cmake; you
 # may call it multiple times to embed other data into the binary.
-convertImage(assets/font.png 4 fontTexture.dat fontPalette.dat)
-convertImage(assets/pilogo.png 4 piLogo.dat piPalette.dat)
+convertImage(assets/images/font.png 4 fontTexture.dat fontPalette.dat)
+convertImage(assets/images/pilogo.png 4 piLogo.dat piPalette.dat)
 addBinaryFile(picostation-loader fontTexture "${PROJECT_BINARY_DIR}/fontTexture.dat")
 addBinaryFile(picostation-loader fontPalette "${PROJECT_BINARY_DIR}/fontPalette.dat")
 addBinaryFile(picostation-loader piTexture "${PROJECT_BINARY_DIR}/piLogo.dat")
