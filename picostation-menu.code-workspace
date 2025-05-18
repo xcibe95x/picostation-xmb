@@ -6,7 +6,10 @@
 	],
 	"settings": {
 		"files.associations": {
-			"atomic": "c"
+			"atomic": "c",
+			"cdrom.h": "c",
+			"gpu.h": "c",
+			"controller.h": "c"
 		}
 	}
 }

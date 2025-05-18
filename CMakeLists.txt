@@ -11,7 +11,7 @@ set(PROJECT_NAME "picostation-loader")
 # Tell CMake about the project. The VERSION, DESCRIPTION and HOMEPAGE_URL fields
 # are optional, but the project name and LANGUAGES field should be present.
 project(
-    picostation-loader
+    ${PROJECT_NAME}
     LANGUAGES    C CXX ASM
     VERSION      1.0.0
     DESCRIPTION  "PSX.Dev project template"
@@ -37,8 +37,8 @@ add_library(
     ps1-bare-metal/libc/string.s
     ps1-bare-metal/ps1/cache.s
     ps1-bare-metal/vendor/printf.c
-    src/includes/system.s
-    src/includes/unhandledexc.c
+    src/psxproject/system.s
+    src/psxproject/unhandledexc.c
 )
 target_include_directories(
     common PUBLIC
@@ -53,11 +53,11 @@ add_executable(
     src/gpu.c
     src/main.c
     src/controller.c
-    src/includes/cdrom.c
-    src/includes/system.c
-    src/includes/filesystem.c
-    src/includes/irq.c
-    src/includes/stream.c
+    src/psxproject/cdrom.c
+    src/psxproject/system.c
+    src/psxproject/filesystem.c
+    src/psxproject/irq.c
+    src/psxproject/stream.c
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE common)
 
