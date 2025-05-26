@@ -156,9 +156,12 @@ static const SpriteInfo fontSprites[] = {
 	{.x = 90, .y = 45, .width = 6, .height = 9}	 // Invalid character
 };
 
-#define COMMAND_GETDIRECTORY 0x1
-#define COMMAND_NAVIGATE 0x2
-#define COMMAND_LOAD 0x3
+
+#define COMMAND_GOTO_ROOT 0x1
+#define COMMAND_GOTO_PARENT 0x2
+#define COMMAND_GOTO_DIRECTORY 0x3
+#define COMMAND_GET_NEXT_CONTENTS 0x4
+#define COMMAND_MOUNT_FILE 0x5
 #define COMMAND_BOOTLOADER 0xa
 
 #define FONT_FIRST_TABLE_CHAR '!'
@@ -306,13 +309,8 @@ uint16_t doLookup(char *sectorBuffer)
 
 uint32_t list_load(void *sectorBuffer, int LBA, uint8_t command, uint16_t argument)
 {
-	uint8_t* temp = (uint8_t*)sectorBuffer;
-	do
-	{
-	printf("issueCDROMCommand\n");
 	sendCommand(command, argument);
 
-	printf("startCDROMRead\n");
 	startCDROMRead(
 		LBA,
 		sectorBuffer,
@@ -320,9 +318,6 @@ uint32_t list_load(void *sectorBuffer, int LBA, uint8_t command, uint16_t argume
 		2340,
 		true,
 		true);
-
-				/* code */
-
 
 	printf("hex log\n");
 	// printf("buffer %s\n",sectorBuffer);
@@ -333,8 +328,6 @@ uint32_t list_load(void *sectorBuffer, int LBA, uint8_t command, uint16_t argume
 		if ((i + 1) % 16 == 0)
 			printf("\n"); // optional: newline every 16 bytes
 	}
-
-} while (temp[12] == 0);
 
 	uint16_t fileEntryCount = doLookup(sectorBuffer + 12);
 	return fileEntryCount;
@@ -414,7 +407,7 @@ int main(int argc, const char **argv)
 	// printf("format s %s\n", txtBuffer2);
 	///
 
-	uint32_t fileEntryCount = list_load(sectorBuffer, 100, COMMAND_GETDIRECTORY, 0);
+	uint32_t fileEntryCount = list_load(sectorBuffer, 100, COMMAND_GOTO_ROOT, 0);
 
 	// printf("disk buffer %s\n", txtBuffer);
 	uint16_t selectedindex = 1;
@@ -532,12 +525,13 @@ int main(int argc, const char **argv)
 			{
 				if (getFlag(selectedindex - 1) == 0)
 				{
-					sendCommand(COMMAND_LOAD, selectedindex - 1);
+					sendCommand(COMMAND_MOUNT_FILE, selectedindex - 1);
 					softReset();
 				}
 				else
 				{
-					fileEntryCount = list_load(sectorBuffer, 100, COMMAND_NAVIGATE, selectedindex - 1);
+					fileEntryCount = list_load(sectorBuffer, 100, COMMAND_GOTO_DIRECTORY, selectedindex - 1);
+					selectedindex = 1;
 				}
 			
 				//		 Rama's code
@@ -549,6 +543,13 @@ int main(int argc, const char **argv)
 				//		WriteCommand( 0x19 );
 				//		AckWithTimeout(500000);
 			}
+
+			if (pressedButtons & BUTTON_MASK_SQUARE)
+			{
+				fileEntryCount = list_load(sectorBuffer, 100, COMMAND_GOTO_PARENT, 0);
+				selectedindex = 1;
+			}
+
 
 			if (pressedButtons & BUTTON_MASK_TRIANGLE)
 			{
