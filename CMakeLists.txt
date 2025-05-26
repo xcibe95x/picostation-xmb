@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.25)
 # setup.cmake.
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/ps1-bare-metal/cmake/toolchain.cmake")
 
-set(PROJECT_NAME "picostation-loader")
+set(PROJECT_NAME "picostation-menu")
 
 # Tell CMake about the project. The VERSION, DESCRIPTION and HOMEPAGE_URL fields
 # are optional, but the project name and LANGUAGES field should be present.
@@ -82,10 +82,10 @@ endfunction()
 # may call it multiple times to embed other data into the binary.
 convertImage(assets/images/font.png 4 fontTexture.dat fontPalette.dat)
 convertImage(assets/images/pilogo.png 4 piLogo.dat piPalette.dat)
-addBinaryFile(picostation-loader fontTexture "${PROJECT_BINARY_DIR}/fontTexture.dat")
-addBinaryFile(picostation-loader fontPalette "${PROJECT_BINARY_DIR}/fontPalette.dat")
-addBinaryFile(picostation-loader piTexture "${PROJECT_BINARY_DIR}/piLogo.dat")
-addBinaryFile(picostation-loader piPalette "${PROJECT_BINARY_DIR}/piPalette.dat")
+addBinaryFile(${PROJECT_NAME} fontTexture "${PROJECT_BINARY_DIR}/fontTexture.dat")
+addBinaryFile(${PROJECT_NAME} fontPalette "${PROJECT_BINARY_DIR}/fontPalette.dat")
+addBinaryFile(${PROJECT_NAME} piTexture "${PROJECT_BINARY_DIR}/piLogo.dat")
+addBinaryFile(${PROJECT_NAME} piPalette "${PROJECT_BINARY_DIR}/piPalette.dat")
 
 # Add a step to run convertExecutable.py after the executable is compiled in
 # order to convert it into a PS1 executable. By default all custom commands run
@@ -97,7 +97,7 @@ add_custom_command(
     COMMAND
         "${Python3_EXECUTABLE}"
         "${PROJECT_SOURCE_DIR}/ps1-bare-metal/tools/convertExecutable.py"
-        "$<TARGET_FILE:picostation-loader>"
+        "$<TARGET_FILE:${PROJECT_NAME}>"
         ${PROJECT_NAME}.psexe
     VERBATIM
 )

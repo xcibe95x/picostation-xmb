@@ -1,2 +1,2 @@
 @echo off
-.\tools\nops.exe /exe ./build/picostation-loader.psexe /m COM12
+.\tools\nops.exe /exe ./build/picostation-menu.psexe /m COM12

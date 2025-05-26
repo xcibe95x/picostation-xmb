@@ -59,103 +59,123 @@ typedef struct
 } SpriteInfo;
 
 static const SpriteInfo fontSprites[] = {
-	{.x = 6, .y = 0, .width = 2, .height = 9},	 // !
-	{.x = 12, .y = 0, .width = 4, .height = 9},	 // "
-	{.x = 18, .y = 0, .width = 6, .height = 9},	 // #
-	{.x = 24, .y = 0, .width = 6, .height = 9},	 // $
-	{.x = 30, .y = 0, .width = 6, .height = 9},	 // %
-	{.x = 36, .y = 0, .width = 6, .height = 9},	 // &
-	{.x = 42, .y = 0, .width = 2, .height = 9},	 // '
-	{.x = 48, .y = 0, .width = 3, .height = 9},	 // (
-	{.x = 54, .y = 0, .width = 3, .height = 9},	 // )
-	{.x = 60, .y = 0, .width = 4, .height = 9},	 // *
-	{.x = 66, .y = 0, .width = 6, .height = 9},	 // +
-	{.x = 72, .y = 0, .width = 3, .height = 9},	 // ,
-	{.x = 78, .y = 0, .width = 6, .height = 9},	 // -
-	{.x = 84, .y = 0, .width = 2, .height = 9},	 // .
-	{.x = 90, .y = 0, .width = 6, .height = 9},	 // /
-	{.x = 0, .y = 9, .width = 6, .height = 9},	 // 0
-	{.x = 6, .y = 9, .width = 6, .height = 9},	 // 1
-	{.x = 12, .y = 9, .width = 6, .height = 9},	 // 2
-	{.x = 18, .y = 9, .width = 6, .height = 9},	 // 3
-	{.x = 24, .y = 9, .width = 6, .height = 9},	 // 4
-	{.x = 30, .y = 9, .width = 6, .height = 9},	 // 5
-	{.x = 36, .y = 9, .width = 6, .height = 9},	 // 6
-	{.x = 42, .y = 9, .width = 6, .height = 9},	 // 7
-	{.x = 48, .y = 9, .width = 6, .height = 9},	 // 8
-	{.x = 54, .y = 9, .width = 6, .height = 9},	 // 9
-	{.x = 60, .y = 9, .width = 2, .height = 9},	 // :
-	{.x = 66, .y = 9, .width = 3, .height = 9},	 // ;
-	{.x = 72, .y = 9, .width = 6, .height = 9},	 // <
-	{.x = 78, .y = 9, .width = 6, .height = 9},	 // =
-	{.x = 84, .y = 9, .width = 6, .height = 9},	 // >
-	{.x = 90, .y = 9, .width = 6, .height = 9},	 // ?
-	{.x = 0, .y = 18, .width = 6, .height = 9},	 // @
-	{.x = 6, .y = 18, .width = 6, .height = 9},	 // A
-	{.x = 12, .y = 18, .width = 6, .height = 9}, // B
-	{.x = 18, .y = 18, .width = 6, .height = 9}, // C
-	{.x = 24, .y = 18, .width = 6, .height = 9}, // D
-	{.x = 30, .y = 18, .width = 6, .height = 9}, // E
-	{.x = 36, .y = 18, .width = 6, .height = 9}, // F
-	{.x = 42, .y = 18, .width = 6, .height = 9}, // G
-	{.x = 48, .y = 18, .width = 6, .height = 9}, // H
-	{.x = 54, .y = 18, .width = 4, .height = 9}, // I
-	{.x = 60, .y = 18, .width = 5, .height = 9}, // J
-	{.x = 66, .y = 18, .width = 6, .height = 9}, // K
-	{.x = 72, .y = 18, .width = 6, .height = 9}, // L
-	{.x = 78, .y = 18, .width = 6, .height = 9}, // M
-	{.x = 84, .y = 18, .width = 6, .height = 9}, // N
-	{.x = 90, .y = 18, .width = 6, .height = 9}, // O
-	{.x = 0, .y = 27, .width = 6, .height = 9},	 // P
-	{.x = 6, .y = 27, .width = 6, .height = 9},	 // Q
-	{.x = 12, .y = 27, .width = 6, .height = 9}, // R
-	{.x = 18, .y = 27, .width = 6, .height = 9}, // S
-	{.x = 24, .y = 27, .width = 6, .height = 9}, // T
-	{.x = 30, .y = 27, .width = 6, .height = 9}, // U
-	{.x = 36, .y = 27, .width = 6, .height = 9}, // V
-	{.x = 42, .y = 27, .width = 6, .height = 9}, // W
-	{.x = 48, .y = 27, .width = 6, .height = 9}, // X
-	{.x = 54, .y = 27, .width = 6, .height = 9}, // Y
-	{.x = 60, .y = 27, .width = 6, .height = 9}, // Z
-	{.x = 66, .y = 27, .width = 3, .height = 9}, // [
-	{.x = 72, .y = 27, .width = 6, .height = 9}, // Backslash
-	{.x = 78, .y = 27, .width = 3, .height = 9}, // ]
-	{.x = 84, .y = 27, .width = 4, .height = 9}, // ^
-	{.x = 90, .y = 27, .width = 6, .height = 9}, // _
-	{.x = 0, .y = 36, .width = 3, .height = 9},	 // `
-	{.x = 6, .y = 36, .width = 6, .height = 9},	 // a
-	{.x = 12, .y = 36, .width = 6, .height = 9}, // b
-	{.x = 18, .y = 36, .width = 6, .height = 9}, // c
-	{.x = 24, .y = 36, .width = 6, .height = 9}, // d
-	{.x = 30, .y = 36, .width = 6, .height = 9}, // e
-	{.x = 36, .y = 36, .width = 5, .height = 9}, // f
-	{.x = 42, .y = 36, .width = 6, .height = 9}, // g
-	{.x = 48, .y = 36, .width = 5, .height = 9}, // h
-	{.x = 54, .y = 36, .width = 2, .height = 9}, // i
-	{.x = 60, .y = 36, .width = 4, .height = 9}, // j
-	{.x = 66, .y = 36, .width = 5, .height = 9}, // k
-	{.x = 72, .y = 36, .width = 2, .height = 9}, // l
-	{.x = 78, .y = 36, .width = 6, .height = 9}, // m
-	{.x = 84, .y = 36, .width = 5, .height = 9}, // n
-	{.x = 90, .y = 36, .width = 6, .height = 9}, // o
-	{.x = 0, .y = 45, .width = 6, .height = 9},	 // p
-	{.x = 6, .y = 45, .width = 6, .height = 9},	 // q
-	{.x = 12, .y = 45, .width = 6, .height = 9}, // r
-	{.x = 18, .y = 45, .width = 6, .height = 9}, // s
-	{.x = 24, .y = 45, .width = 5, .height = 9}, // t
-	{.x = 30, .y = 45, .width = 5, .height = 9}, // u
-	{.x = 36, .y = 45, .width = 6, .height = 9}, // v
-	{.x = 42, .y = 45, .width = 6, .height = 9}, // w
-	{.x = 48, .y = 45, .width = 6, .height = 9}, // x
-	{.x = 54, .y = 45, .width = 6, .height = 9}, // y
-	{.x = 60, .y = 45, .width = 5, .height = 9}, // z
-	{.x = 66, .y = 45, .width = 4, .height = 9}, // {
-	{.x = 72, .y = 45, .width = 2, .height = 9}, // |
-	{.x = 78, .y = 45, .width = 4, .height = 9}, // }
-	{.x = 84, .y = 45, .width = 6, .height = 9}, // ~
-	{.x = 90, .y = 45, .width = 6, .height = 9}	 // Invalid character
+	{.x = 6, .y = 0, .width = 2, .height = 9},	   // !
+	{.x = 12, .y = 0, .width = 4, .height = 9},	   // "
+	{.x = 18, .y = 0, .width = 6, .height = 9},	   // #
+	{.x = 24, .y = 0, .width = 6, .height = 9},	   // $
+	{.x = 30, .y = 0, .width = 6, .height = 9},	   // %
+	{.x = 36, .y = 0, .width = 6, .height = 9},	   // &
+	{.x = 42, .y = 0, .width = 2, .height = 9},	   // '
+	{.x = 48, .y = 0, .width = 3, .height = 9},	   // (
+	{.x = 54, .y = 0, .width = 3, .height = 9},	   // )
+	{.x = 60, .y = 0, .width = 4, .height = 9},	   // *
+	{.x = 66, .y = 0, .width = 6, .height = 9},	   // +
+	{.x = 72, .y = 0, .width = 3, .height = 9},	   // ,
+	{.x = 78, .y = 0, .width = 6, .height = 9},	   // -
+	{.x = 84, .y = 0, .width = 2, .height = 9},	   // .
+	{.x = 90, .y = 0, .width = 6, .height = 9},	   // /
+	{.x = 0, .y = 9, .width = 6, .height = 9},	   // 0
+	{.x = 6, .y = 9, .width = 6, .height = 9},	   // 1
+	{.x = 12, .y = 9, .width = 6, .height = 9},	   // 2
+	{.x = 18, .y = 9, .width = 6, .height = 9},	   // 3
+	{.x = 24, .y = 9, .width = 6, .height = 9},	   // 4
+	{.x = 30, .y = 9, .width = 6, .height = 9},	   // 5
+	{.x = 36, .y = 9, .width = 6, .height = 9},	   // 6
+	{.x = 42, .y = 9, .width = 6, .height = 9},	   // 7
+	{.x = 48, .y = 9, .width = 6, .height = 9},	   // 8
+	{.x = 54, .y = 9, .width = 6, .height = 9},	   // 9
+	{.x = 60, .y = 9, .width = 2, .height = 9},	   // :
+	{.x = 66, .y = 9, .width = 3, .height = 9},	   // ;
+	{.x = 72, .y = 9, .width = 6, .height = 9},	   // <
+	{.x = 78, .y = 9, .width = 6, .height = 9},	   // =
+	{.x = 84, .y = 9, .width = 6, .height = 9},	   // >
+	{.x = 90, .y = 9, .width = 6, .height = 9},	   // ?
+	{.x = 0, .y = 18, .width = 6, .height = 9},	   // @
+	{.x = 6, .y = 18, .width = 6, .height = 9},	   // A
+	{.x = 12, .y = 18, .width = 6, .height = 9},   // B
+	{.x = 18, .y = 18, .width = 6, .height = 9},   // C
+	{.x = 24, .y = 18, .width = 6, .height = 9},   // D
+	{.x = 30, .y = 18, .width = 6, .height = 9},   // E
+	{.x = 36, .y = 18, .width = 6, .height = 9},   // F
+	{.x = 42, .y = 18, .width = 6, .height = 9},   // G
+	{.x = 48, .y = 18, .width = 6, .height = 9},   // H
+	{.x = 54, .y = 18, .width = 4, .height = 9},   // I
+	{.x = 60, .y = 18, .width = 5, .height = 9},   // J
+	{.x = 66, .y = 18, .width = 6, .height = 9},   // K
+	{.x = 72, .y = 18, .width = 6, .height = 9},   // L
+	{.x = 78, .y = 18, .width = 6, .height = 9},   // M
+	{.x = 84, .y = 18, .width = 6, .height = 9},   // N
+	{.x = 90, .y = 18, .width = 6, .height = 9},   // O
+	{.x = 0, .y = 27, .width = 6, .height = 9},	   // P
+	{.x = 6, .y = 27, .width = 6, .height = 9},	   // Q
+	{.x = 12, .y = 27, .width = 6, .height = 9},   // R
+	{.x = 18, .y = 27, .width = 6, .height = 9},   // S
+	{.x = 24, .y = 27, .width = 6, .height = 9},   // T
+	{.x = 30, .y = 27, .width = 6, .height = 9},   // U
+	{.x = 36, .y = 27, .width = 6, .height = 9},   // V
+	{.x = 42, .y = 27, .width = 6, .height = 9},   // W
+	{.x = 48, .y = 27, .width = 6, .height = 9},   // X
+	{.x = 54, .y = 27, .width = 6, .height = 9},   // Y
+	{.x = 60, .y = 27, .width = 6, .height = 9},   // Z
+	{.x = 66, .y = 27, .width = 3, .height = 9},   // [
+	{.x = 72, .y = 27, .width = 6, .height = 9},   // Backslash
+	{.x = 78, .y = 27, .width = 3, .height = 9},   // ]
+	{.x = 84, .y = 27, .width = 4, .height = 9},   // ^
+	{.x = 90, .y = 27, .width = 6, .height = 9},   // _
+	{.x = 0, .y = 36, .width = 3, .height = 9},	   // `
+	{.x = 6, .y = 36, .width = 6, .height = 9},	   // a
+	{.x = 12, .y = 36, .width = 6, .height = 9},   // b
+	{.x = 18, .y = 36, .width = 6, .height = 9},   // c
+	{.x = 24, .y = 36, .width = 6, .height = 9},   // d
+	{.x = 30, .y = 36, .width = 6, .height = 9},   // e
+	{.x = 36, .y = 36, .width = 5, .height = 9},   // f
+	{.x = 42, .y = 36, .width = 6, .height = 9},   // g
+	{.x = 48, .y = 36, .width = 5, .height = 9},   // h
+	{.x = 54, .y = 36, .width = 2, .height = 9},   // i
+	{.x = 60, .y = 36, .width = 4, .height = 9},   // j
+	{.x = 66, .y = 36, .width = 5, .height = 9},   // k
+	{.x = 72, .y = 36, .width = 2, .height = 9},   // l
+	{.x = 78, .y = 36, .width = 6, .height = 9},   // m
+	{.x = 84, .y = 36, .width = 5, .height = 9},   // n
+	{.x = 90, .y = 36, .width = 6, .height = 9},   // o
+	{.x = 0, .y = 45, .width = 6, .height = 9},	   // p
+	{.x = 6, .y = 45, .width = 6, .height = 9},	   // q
+	{.x = 12, .y = 45, .width = 6, .height = 9},   // r
+	{.x = 18, .y = 45, .width = 6, .height = 9},   // s
+	{.x = 24, .y = 45, .width = 5, .height = 9},   // t
+	{.x = 30, .y = 45, .width = 5, .height = 9},   // u
+	{.x = 36, .y = 45, .width = 6, .height = 9},   // v
+	{.x = 42, .y = 45, .width = 6, .height = 9},   // w
+	{.x = 48, .y = 45, .width = 6, .height = 9},   // x
+	{.x = 54, .y = 45, .width = 6, .height = 9},   // y
+	{.x = 60, .y = 45, .width = 5, .height = 9},   // z
+	{.x = 66, .y = 45, .width = 4, .height = 9},   // {
+	{.x = 72, .y = 45, .width = 2, .height = 9},   // |
+	{.x = 78, .y = 45, .width = 4, .height = 9},   // }
+	{.x = 84, .y = 45, .width = 6, .height = 9},   // ~
+	{.x = 90, .y = 45, .width = 6, .height = 9},   // Invalid character
+	{.x = 0, .y = 54, .width = 6, .height = 9},	   //
+	{.x = 6, .y = 54, .width = 6, .height = 9},	   //
+	{.x = 12, .y = 54, .width = 4, .height = 9},   //
+	{.x = 18, .y = 54, .width = 4, .height = 9},   //
+	{.x = 24, .y = 54, .width = 6, .height = 9},   //
+	{.x = 30, .y = 54, .width = 6, .height = 9},   //
+	{.x = 36, .y = 54, .width = 6, .height = 9},   //
+	{.x = 42, .y = 54, .width = 6, .height = 9},   //
+	{.x = 0, .y = 63, .width = 7, .height = 9},	   //
+	{.x = 12, .y = 63, .width = 7, .height = 9},   //
+	{.x = 24, .y = 63, .width = 9, .height = 9},   //
+	{.x = 36, .y = 63, .width = 8, .height = 10},  //
+	{.x = 48, .y = 63, .width = 11, .height = 10}, //
+	{.x = 60, .y = 63, .width = 12, .height = 10}, //
+	{.x = 72, .y = 63, .width = 14, .height = 9},  //
+	{.x = 0, .y = 73, .width = 10, .height = 10},  //
+	{.x = 12, .y = 73, .width = 10, .height = 10}, //
+	{.x = 24, .y = 73, .width = 10, .height = 10}, //
+	{.x = 36, .y = 73, .width = 10, .height = 9},  //
+	{.x = 48, .y = 73, .width = 10, .height = 9},  //
+	{.x = 60, .y = 73, .width = 10, .height = 10}  //
 };
-
 
 #define COMMAND_GOTO_ROOT 0x1
 #define COMMAND_GOTO_PARENT 0x2
@@ -172,7 +192,7 @@ static const SpriteInfo fontSprites[] = {
 static void sendCommand(uint8_t command, uint16_t argument)
 {
 	printf("DEBUG:X sending command %i with arg  %i\n", command, argument);
-	uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xF0 | command , (argument >> 8) & 0xFF, argument & 0xFF};
+	uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xF0 | command, (argument >> 8) & 0xFF, argument & 0xFF};
 	issueCDROMCommand(CDROM_CMD_TEST, test, sizeof(test));
 }
 
@@ -193,7 +213,7 @@ static void printString(
 	// Iterate over every character in the string.
 	for (; *str; str++)
 	{
-		char ch = *str;
+		uint8_t ch = (uint8_t)*str;
 
 		// Check if the character is "special" and shall be handled without
 		// drawing any sprite, or if it's invalid and should be rendered as a
@@ -213,10 +233,10 @@ static void printString(
 		case ' ':
 			currentX += FONT_SPACE_WIDTH;
 			continue;
-
-		case '\x80' ... '\xff':
+		}
+		if (ch >= 0x99 && ch <= 0xFF)
+		{
 			ch = '\x7f';
-			break;
 		}
 
 		// If the character was not a tab, newline or space, fetch its
@@ -241,7 +261,7 @@ static void printString(
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
 #define FONT_WIDTH 96
-#define FONT_HEIGHT 56
+#define FONT_HEIGHT 84
 #define FONT_COLOR_DEPTH GP0_COLOR_4BPP
 
 extern const uint8_t fontTexture[], fontPalette[], piTexture[];
@@ -258,12 +278,14 @@ int loadchecker = 0;
 static uint8_t *fileLookupBuffer;
 static char *filenameBuffer;
 
-void wait_ms(uint32_t ms) {
+void wait_ms(uint32_t ms)
+{
 	uint32_t frequency = (GPU_GP1 & GP1_STAT_FB_MODE_BITMASK) == GP1_STAT_FB_MODE_PAL ? 50 : 60;
-    uint32_t frames = (ms * frequency) / 1000; 
-    for (uint32_t i = 0; i < frames; ++i) {
-        waitForVblank();
-    }
+	uint32_t frames = (ms * frequency) / 1000;
+	for (uint32_t i = 0; i < frames; ++i)
+	{
+		waitForVblank();
+	}
 }
 
 uint16_t doLookup(char *sectorBuffer)
@@ -533,7 +555,7 @@ int main(int argc, const char **argv)
 					fileEntryCount = list_load(sectorBuffer, 100, COMMAND_GOTO_DIRECTORY, selectedindex - 1);
 					selectedindex = 1;
 				}
-			
+
 				//		 Rama's code
 				//		StartCommand();
 				//		WriteParam( 0x50 );
@@ -549,7 +571,6 @@ int main(int argc, const char **argv)
 				fileEntryCount = list_load(sectorBuffer, 100, COMMAND_GOTO_PARENT, 0);
 				selectedindex = 1;
 			}
-
 
 			if (pressedButtons & BUTTON_MASK_TRIANGLE)
 			{
@@ -586,7 +607,7 @@ int main(int argc, const char **argv)
 				for (int i = startnumber; i < startnumber + 20; i++)
 				{
 					char buffer[300];
-					snprintf(buffer, sizeof(buffer), "%i %s %s\n", i + 1, getFlag(i) == 1 ? "D" : "F", getString(i));
+					snprintf(buffer, sizeof(buffer), "%i %s %s\n", i + 1, getFlag(i) == 1 ? "\x92" : "\x8f", getString(i));
 					printString(chain, &font, 12, 30 + (i - startnumber) * 10, buffer);
 
 					if (i + 1 == selectedindex)
