@@ -548,7 +548,8 @@ int main(int argc, const char **argv)
 				if (getFlag(selectedindex - 1) == 0)
 				{
 					sendCommand(COMMAND_MOUNT_FILE, selectedindex - 1);
-					softReset();
+					//softReset();
+					softFastReboot();
 				}
 				else
 				{
@@ -622,6 +623,12 @@ int main(int argc, const char **argv)
 						break;
 					}
 				}
+			}
+			else
+			{
+				printString(
+					chain, &font, 40, 40,
+					"Empty Folder");
 			}
 		}
 		else
