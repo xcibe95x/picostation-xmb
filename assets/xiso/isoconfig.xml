@@ -48,8 +48,8 @@
             application     ="PLAYSTATION"
             volume          ="PICO"
             volume_set      ="PICO"
-            publisher       ="RAIJIN"
-            data_preparer       ="MKPSXISO"
+            publisher       ="EQUINOX"
+            data_preparer   ="MKPSXISO"
         />
         
         <!-- <license>
@@ -62,9 +62,7 @@
             Attributes:
                 file    - Specifies the license file to inject into the ISO image.
         -->
-        <!--
-        <license file="LICENSEA.DAT"/>
-        -->
+        <license file="LICENSEJ.DAT"/>
         
         <!-- <directory_tree>
                 Specifies and contains the directory structure for the data track.

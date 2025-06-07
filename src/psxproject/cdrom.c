@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdatomic.h>
-#include "system.h"
+#include "controller.h"
 
 volatile bool waitingForInt1;
 volatile bool waitingForInt2;
@@ -75,7 +75,7 @@ void issueCDROMCommand(uint8_t cmd, const uint8_t *arg, size_t argLength) {
     
     CDROM_ADDRESS = 1;
     CDROM_HCLRCTL = CDROM_HCLRCTL_CLRPRM; // Clear parameter buffer
-    //delayMicroseconds(3);
+    delayMicroseconds(100);
     int time = 102;
     __asm__ volatile(
         // The .set noreorder directive will prevent the assembler from trying
@@ -184,13 +184,15 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
         mode |= CDROM_MODE_SPEED_2X;
 
     cdrom_convertLBAToMSF(&msf, lba);
-    printf("LBA Set: %d (%02x:%02x:%02x), issue setmode\n", lba, msf.minute, msf.second, msf.frame);
+    delayMicroseconds(100);
+
+    //printf("LBA Set: %d (%02x:%02x:%02x), issue setmode\n", lba, msf.minute, msf.second, msf.frame);
     issueCDROMCommand(CDROM_CMD_SETMODE, &mode, sizeof(mode));
     waitForINT3();
-    printf("Issue SETLOC\n");
+    //printf("Issue SETLOC\n");
     issueCDROMCommand(CDROM_CMD_SETLOC, (const uint8_t *)&msf, sizeof(msf));
     waitForINT3();
-    printf("Issue CDREAD\n");
+    //printf("Issue CDREAD\n");
     issueCDROMCommand(CDROM_CMD_READ_N, NULL, 0);
     waitForINT3();
 
@@ -201,10 +203,10 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
         while (waitingForInt1)
         {
             // busy wait
-            delayMicroseconds(200);
+            delayMicroseconds(100);
         }
     }
-    printf("Finish read\n");
+    //printf("Finish read\n");
 }
 
 // Data is ready to be read from the CDROM via DMA.

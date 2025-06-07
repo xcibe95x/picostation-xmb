@@ -152,7 +152,7 @@ void softFastReboot(void);
  *
  * @param time
  */
-void delayMicroseconds(int time);
+//void delayMicroseconds(int time);
 
 /**
  * @brief Blocks for (roughly) the specified number of microseconds. This

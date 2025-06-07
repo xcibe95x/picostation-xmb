@@ -48,6 +48,9 @@
 #include "psxproject/system.h"
 #include <stdlib.h>
 
+#define LISTING_SIZE 2324
+#define MAX_FILES 4096
+
 // In order to pick sprites (characters) out of our spritesheet, we need a table
 // listing all of them (in ASCII order in this case) with their UV coordinates
 // within the sheet as well as their dimensions. In this example we're going to
@@ -177,6 +180,7 @@ static const SpriteInfo fontSprites[] = {
 	{.x = 60, .y = 73, .width = 10, .height = 10}  //
 };
 
+#define COMMAND_NONE 0x0
 #define COMMAND_GOTO_ROOT 0x1
 #define COMMAND_GOTO_PARENT 0x2
 #define COMMAND_GOTO_DIRECTORY 0x3
@@ -191,7 +195,7 @@ static const SpriteInfo fontSprites[] = {
 
 static void sendCommand(uint8_t command, uint16_t argument)
 {
-	printf("DEBUG:X sending command %i with arg  %i\n", command, argument);
+	//printf("DEBUG:X sending command %i with arg  %i\n", command, argument);
 	uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xF0 | command, (argument >> 8) & 0xFF, argument & 0xFF};
 	issueCDROMCommand(CDROM_CMD_TEST, test, sizeof(test));
 }
@@ -272,9 +276,6 @@ extern const uint8_t fontTexture[], fontPalette[], piTexture[];
 
 int loadchecker = 0;
 
-#define LISTING_SIZE 2324
-#define MAX_FILES 4096
-
 static uint8_t *fileLookupBuffer;
 static char *filenameBuffer;
 
@@ -288,28 +289,25 @@ void wait_ms(uint32_t ms)
 	}
 }
 
-uint16_t doLookup(char *sectorBuffer)
+bool doLookup(uint16_t* itemCount, char *sectorBuffer)
 {
-	uint32_t fileLookupOffset = 0;
-	uint32_t filenameOffset = 0;
+	uint32_t fileLookupOffset = *itemCount << 2;
+	uint32_t filenameOffset = *itemCount << 8;
 
 	uint16_t offset = 0;
-	uint16_t itemCount = 0;
-	while (offset < LISTING_SIZE)
+	while (offset < LISTING_SIZE && *itemCount < MAX_FILES)
 	{
 		// If 0 length mark end of list
 		uint16_t length = ((uint8_t *)sectorBuffer)[offset];
-		printf("length %i x\n", length);
+		//printf("length %i x\n", length);
 		if (length == 0)
 		{
-			printf("exit loop\n");
-			fileLookupBuffer[fileLookupOffset + 0] = 0xff;
-			fileLookupBuffer[fileLookupOffset + 1] = 0xff;
-			break;
+			//printf("exit loop has next = %i\n", sectorBuffer[offset + 1]);
+			return sectorBuffer[offset + 1] == 1;
 		}
 		// Populate index / type lookup
 		uint8_t flag = sectorBuffer[offset + 1];
-		printf("flag %i\n", flag);
+		//printf("flag %i\n", flag);
 		fileLookupBuffer[fileLookupOffset + 0] = flag;
 		fileLookupBuffer[fileLookupOffset + 1] = (filenameOffset >> 16) & 0xff;
 		fileLookupBuffer[fileLookupOffset + 2] = (filenameOffset >> 8) & 0xff;
@@ -319,39 +317,48 @@ uint16_t doLookup(char *sectorBuffer)
 		strncpy(&filenameBuffer[filenameOffset], (char *)&sectorBuffer[offset + 2], length);
 		filenameBuffer[filenameOffset + length] = '\0';
 
-		printf("item loop %s\n", &filenameBuffer[filenameOffset]);
+		//printf("item loop %s\n", &filenameBuffer[filenameOffset]);
 
 		offset += length + 2;
-		filenameOffset += length + 1;
-		itemCount++;
+		filenameOffset += 256;
+		*itemCount = *itemCount + 1;
 	}
-	printf("do lookup %i\n", itemCount);
-	return itemCount;
+	//printf("do lookup %i\n", *itemCount);
+	return false;
 }
 
-uint32_t list_load(void *sectorBuffer, int LBA, uint8_t command, uint16_t argument)
+uint32_t list_load(void *sectorBuffer, uint8_t command, uint16_t argument)
 {
-	sendCommand(command, argument);
+	uint16_t fileEntryCount = 0;
 
-	startCDROMRead(
-		LBA,
-		sectorBuffer,
-		1,
-		2340,
-		true,
-		true);
-
-	printf("hex log\n");
-	// printf("buffer %s\n",sectorBuffer);
-	for (int i = 0; i < 2340; i++)
+	bool hasNext = true;
+	while (hasNext)
 	{
-		char c = ((unsigned char *)sectorBuffer)[i];
-		printf("%02X ", c);
-		if ((i + 1) % 16 == 0)
-			printf("\n"); // optional: newline every 16 bytes
+		sendCommand(command, argument);
+
+		startCDROMRead(
+			100,
+			sectorBuffer,
+			1,
+			2340,
+			true,
+			true);
+
+		// printf("hex log\n");
+		// // printf("buffer %s\n",sectorBuffer);
+		// for (int i = 0; i < 2340; i++)
+		// {
+		// 	char c = ((unsigned char *)sectorBuffer)[i];
+		// 	printf("%02X ", c);
+		// 	if ((i + 1) % 16 == 0)
+		// 		printf("\n"); // optional: newline every 16 bytes
+		// }
+
+		hasNext = doLookup(&fileEntryCount, sectorBuffer + 12);
+		command = COMMAND_GET_NEXT_CONTENTS;
 	}
 
-	uint16_t fileEntryCount = doLookup(sectorBuffer + 12);
+	printf("fileEntryCount %i\n", fileEntryCount);
 	return fileEntryCount;
 }
 
@@ -388,6 +395,8 @@ int main(int argc, const char **argv)
 	initControllerBus();
 	// initFilesystem();
 	initCDROM();
+
+	uint8_t currentCommand = COMMAND_NONE;
 
 	fileLookupBuffer = (uint8_t *)malloc(4 * MAX_FILES);
 	filenameBuffer = (char *)malloc(256 * MAX_FILES);
@@ -429,7 +438,7 @@ int main(int argc, const char **argv)
 	// printf("format s %s\n", txtBuffer2);
 	///
 
-	uint32_t fileEntryCount = list_load(sectorBuffer, 100, COMMAND_GOTO_ROOT, 0);
+	uint32_t fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_ROOT, 0);
 
 	// printf("disk buffer %s\n", txtBuffer);
 	uint16_t selectedindex = 1;
@@ -547,14 +556,11 @@ int main(int argc, const char **argv)
 			{
 				if (getFlag(selectedindex - 1) == 0)
 				{
-					sendCommand(COMMAND_MOUNT_FILE, selectedindex - 1);
-					//softReset();
-					softFastReboot();
+					currentCommand = COMMAND_MOUNT_FILE;
 				}
 				else
 				{
-					fileEntryCount = list_load(sectorBuffer, 100, COMMAND_GOTO_DIRECTORY, selectedindex - 1);
-					selectedindex = 1;
+					currentCommand = COMMAND_GOTO_DIRECTORY;
 				}
 
 				//		 Rama's code
@@ -569,13 +575,12 @@ int main(int argc, const char **argv)
 
 			if (pressedButtons & BUTTON_MASK_SQUARE)
 			{
-				fileEntryCount = list_load(sectorBuffer, 100, COMMAND_GOTO_PARENT, 0);
-				selectedindex = 1;
+				currentCommand = COMMAND_GOTO_PARENT;
 			}
 
 			if (pressedButtons & BUTTON_MASK_TRIANGLE)
 			{
-				sendCommand(COMMAND_BOOTLOADER, 0xBEEF);
+				currentCommand = COMMAND_BOOTLOADER;
 			}
 
 			if (pressedButtons & BUTTON_MASK_SELECT)
@@ -599,37 +604,48 @@ int main(int argc, const char **argv)
 				chain, &font, 16, 10,
 				"PicoStation Plus Menu");
 
-			char fbuffer[32];
-			snprintf(fbuffer, sizeof(fbuffer), "%i, index: %i", (int)usingSecondFrame, selectedindex);
-			printString(chain, &font, 206, 10, fbuffer);
-
-			if (fileEntryCount > 0)
+			if (currentCommand != COMMAND_NONE)
 			{
-				for (int i = startnumber; i < startnumber + 20; i++)
-				{
-					char buffer[300];
-					snprintf(buffer, sizeof(buffer), "%i %s %s\n", i + 1, getFlag(i) == 1 ? "\x92" : "\x8f", getString(i));
-					printString(chain, &font, 12, 30 + (i - startnumber) * 10, buffer);
-
-					if (i + 1 == selectedindex)
-					{
-
-						printString(
-							chain, &font, 5, 30 + (i - startnumber) * 10,
-							">");
-					}
-					if (i == fileEntryCount - 1)
-					{
-						break;
-					}
-				}
+				printString(chain, &font, 40, 40, "Please Wait Loading...");
 			}
 			else
 			{
-				printString(
-					chain, &font, 40, 40,
-					"Empty Folder");
+
+				char fbuffer[32];
+				snprintf(fbuffer, sizeof(fbuffer), "index: %i of %i", selectedindex, fileEntryCount);
+				printString(chain, &font, 206, 10, fbuffer);
+
+				if (fileEntryCount > 0)
+				{
+					for (int i = startnumber; i < startnumber + 18; i++)
+					{
+						char buffer[300];
+						snprintf(buffer, sizeof(buffer), "%i %s %s\n", i + 1, getFlag(i) == 1 ? "\x92" : "\x8f", getString(i));
+						printString(chain, &font, 12, 30 + (i - startnumber) * 10, buffer);
+
+						if (i + 1 == selectedindex)
+						{
+
+							printString(
+								chain, &font, 5, 30 + (i - startnumber) * 10,
+								">");
+						}
+						if (i == fileEntryCount - 1)
+						{
+							break;
+						}
+					}
+
+					
+					printString(chain, &font, 12, 220, "X Select, [] Parent Folder");
+				}
+				else
+				{
+					printString(chain, &font, 40, 40, "Empty Folder");
+				}
+
 			}
+
 		}
 		else
 		{
@@ -662,6 +678,32 @@ int main(int argc, const char **argv)
 		waitForGP0Ready();
 		waitForVblank();
 		sendLinkedList(chain->data);
+
+		if (currentCommand != COMMAND_NONE)
+		{
+			if (currentCommand == COMMAND_GOTO_PARENT)
+			{
+				fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_PARENT, 0);
+				selectedindex = 1;
+			}
+			else if (currentCommand == COMMAND_BOOTLOADER)
+			{
+				//sendCommand(COMMAND_BOOTLOADER, 0xBEEF);
+			}
+			else if (currentCommand == COMMAND_GOTO_DIRECTORY)
+			{
+				fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_DIRECTORY, selectedindex - 1);
+				selectedindex = 1;
+			}
+			else if (currentCommand == COMMAND_MOUNT_FILE)
+			{
+				sendCommand(COMMAND_MOUNT_FILE, selectedindex - 1);
+				//softReset();
+				softFastReboot();
+			}
+			
+			currentCommand = COMMAND_NONE;
+		}
 	}
 
 	return 0;

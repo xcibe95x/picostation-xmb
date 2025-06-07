@@ -40,7 +40,7 @@
  #include "ps1/registers.h"
  #include "controller.h"
  #include "psxproject/system.h"
- /*void delayMicroseconds(int time) {
+ void delayMicroseconds(int time) {
     // Calculate the approximate number of CPU cycles that need to be burned,
     // assuming a 33.8688 MHz clock (1 us = 33.8688 = ~33.875 = 271 / 8 cycles).
     // The loop consists of a branch and a decrement, thus each iteration will
@@ -60,7 +60,7 @@
         ".set pop\n"
         : "+r"(time)
     );
-} */
+} 
  
  void initControllerBus(void) {
      // Reset the serial interface, initialize it with the settings used by

@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include "ps1/cop0.h"
 #include "ps1/registers.h"
+#include "controller.h"
 #include "system.h"
 
 #define BIOS_ENTRY_POINT     ((VoidFunction) 0xbfc00000)

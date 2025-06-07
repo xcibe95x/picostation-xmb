@@ -50,7 +50,7 @@ typedef enum {
 #define BUTTON_MASK_SQUARE   (1<<15)
 
 
-//void delayMicroseconds(int time);
+void delayMicroseconds(int time);
 void initControllerBus(void);
 bool waitForAcknowledge(int timeout);
 void selectPort(int port);
