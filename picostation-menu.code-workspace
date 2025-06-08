@@ -9,7 +9,13 @@
 			"atomic": "c",
 			"cdrom.h": "c",
 			"gpu.h": "c",
-			"controller.h": "c"
+			"controller.h": "c",
+			"algorithm": "c",
+			"iterator": "c",
+			"xmemory": "c",
+			"xutility": "c",
+			"ios": "c",
+			"xiosbase": "c"
 		}
 	}
 }

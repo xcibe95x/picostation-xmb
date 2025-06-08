@@ -47,6 +47,7 @@
 #include "controller.h"
 #include "psxproject/system.h"
 #include <stdlib.h>
+#include "file_manager.h"
 
 #define LISTING_SIZE 2324
 #define MAX_FILES 4096
@@ -196,7 +197,7 @@ static const SpriteInfo fontSprites[] = {
 static void sendCommand(uint8_t command, uint16_t argument)
 {
 	//printf("DEBUG:X sending command %i with arg  %i\n", command, argument);
-	uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xF0 | command, (argument >> 8) & 0xFF, argument & 0xFF};
+	uint8_t test[] = { CDROM_TEST_DSP_CMD, (uint8_t)(0xF0 | command), (uint8_t)((argument >> 8) & 0xFF), (uint8_t)(argument & 0xFF) };
 	issueCDROMCommand(CDROM_CMD_TEST, test, sizeof(test));
 }
 
@@ -276,9 +277,6 @@ extern const uint8_t fontTexture[], fontPalette[], piTexture[];
 
 int loadchecker = 0;
 
-static uint8_t *fileLookupBuffer;
-static char *filenameBuffer;
-
 void wait_ms(uint32_t ms)
 {
 	uint32_t frequency = (GPU_GP1 & GP1_STAT_FB_MODE_BITMASK) == GP1_STAT_FB_MODE_PAL ? 50 : 60;
@@ -291,39 +289,19 @@ void wait_ms(uint32_t ms)
 
 bool doLookup(uint16_t* itemCount, char *sectorBuffer)
 {
-	uint32_t fileLookupOffset = *itemCount << 2;
-	uint32_t filenameOffset = *itemCount << 8;
-
 	uint16_t offset = 0;
 	while (offset < LISTING_SIZE && *itemCount < MAX_FILES)
 	{
-		// If 0 length mark end of list
 		uint16_t length = ((uint8_t *)sectorBuffer)[offset];
-		//printf("length %i x\n", length);
 		if (length == 0)
 		{
-			//printf("exit loop has next = %i\n", sectorBuffer[offset + 1]);
 			return sectorBuffer[offset + 1] == 1;
 		}
-		// Populate index / type lookup
-		uint8_t flag = sectorBuffer[offset + 1];
-		//printf("flag %i\n", flag);
-		fileLookupBuffer[fileLookupOffset + 0] = flag;
-		fileLookupBuffer[fileLookupOffset + 1] = (filenameOffset >> 16) & 0xff;
-		fileLookupBuffer[fileLookupOffset + 2] = (filenameOffset >> 8) & 0xff;
-		fileLookupBuffer[fileLookupOffset + 3] = filenameOffset & 0xff;
-		fileLookupOffset += 4;
-		// Populate filenames
-		strncpy(&filenameBuffer[filenameOffset], (char *)&sectorBuffer[offset + 2], length);
-		filenameBuffer[filenameOffset + length] = '\0';
-
-		//printf("item loop %s\n", &filenameBuffer[filenameOffset]);
-
+		file_manager_init_file_data(*itemCount, sectorBuffer[offset + 1], &sectorBuffer[offset + 2], length);
 		offset += length + 2;
-		filenameOffset += 256;
 		*itemCount = *itemCount + 1;
 	}
-	//printf("do lookup %i\n", *itemCount);
+
 	return false;
 }
 
@@ -354,10 +332,11 @@ uint32_t list_load(void *sectorBuffer, uint8_t command, uint16_t argument)
 		// 		printf("\n"); // optional: newline every 16 bytes
 		// }
 
-		hasNext = doLookup(&fileEntryCount, sectorBuffer + 12);
+		hasNext = doLookup(&fileEntryCount, ((char*)sectorBuffer) + 12);
 		command = COMMAND_GET_NEXT_CONTENTS;
 	}
 
+	file_manager_sort(fileEntryCount);
 	printf("fileEntryCount %i\n", fileEntryCount);
 	return fileEntryCount;
 }
@@ -370,19 +349,7 @@ uint32_t list_load(void *sectorBuffer, uint8_t command, uint16_t argument)
 
 // strings
 
-char *getString(uint16_t index)
-{
-	uint32_t offset = index << 2;
-	uint32_t filenameOffset = fileLookupBuffer[offset + 1] << 16 | fileLookupBuffer[offset + 2] << 8 | fileLookupBuffer[offset + 3];
-	return &filenameBuffer[filenameOffset];
-}
 
-uint8_t getFlag(uint16_t index)
-{
-	uint32_t offset = index << 2;
-	uint8_t flag = fileLookupBuffer[offset + 0];
-	return flag;
-}
 
 // when requesting a sector using size 2340, and since data is expected to be 2324 bytes long, is it correct from what i see it has 12 byte header and 4 byte footer
 
@@ -396,12 +363,12 @@ int main(int argc, const char **argv)
 	// initFilesystem();
 	initCDROM();
 
+	file_manager_init();
+
 	uint8_t currentCommand = COMMAND_NONE;
 
-	fileLookupBuffer = (uint8_t *)malloc(4 * MAX_FILES);
-	filenameBuffer = (char *)malloc(256 * MAX_FILES);
-
 	printf("Hello from menu loader!\n");
+	printf("fileData size %i", sizeof(fileData));
 
 	if ((GPU_GP1 & GP1_STAT_FB_MODE_BITMASK) == GP1_STAT_FB_MODE_PAL)
 	{
@@ -554,7 +521,8 @@ int main(int argc, const char **argv)
 
 			if (pressedButtons & BUTTON_MASK_X)
 			{
-				if (getFlag(selectedindex - 1) == 0)
+				fileData* file = file_manager_get_file_data(selectedindex - 1);
+				if (file->flag == 0)
 				{
 					currentCommand = COMMAND_MOUNT_FILE;
 				}
@@ -619,8 +587,10 @@ int main(int argc, const char **argv)
 				{
 					for (int i = startnumber; i < startnumber + 18; i++)
 					{
+						fileData* file = file_manager_get_file_data(i);
+
 						char buffer[300];
-						snprintf(buffer, sizeof(buffer), "%i %s %s\n", i + 1, getFlag(i) == 1 ? "\x92" : "\x8f", getString(i));
+						snprintf(buffer, sizeof(buffer), "%i %s %s\n", i + 1, file->flag == 1 ? "\x92" : "\x8f", file->filename);
 						printString(chain, &font, 12, 30 + (i - startnumber) * 10, buffer);
 
 						if (i + 1 == selectedindex)
@@ -630,7 +600,7 @@ int main(int argc, const char **argv)
 								chain, &font, 5, 30 + (i - startnumber) * 10,
 								">");
 						}
-						if (i == fileEntryCount - 1)
+						if ((uint32_t)i == fileEntryCount - 1)
 						{
 							break;
 						}
