@@ -198,6 +198,7 @@ static void sendCommand(uint8_t command, uint16_t argument)
 {
 	//printf("DEBUG:X sending command %i with arg  %i\n", command, argument);
 	uint8_t test[] = { CDROM_TEST_DSP_CMD, (uint8_t)(0xF0 | command), (uint8_t)((argument >> 8) & 0xFF), (uint8_t)(argument & 0xFF) };
+	//uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xF0 | command, (argument >> 8) & 0xFF, argument & 0xFF};
 	issueCDROMCommand(CDROM_CMD_TEST, test, sizeof(test));
 }
 
@@ -313,7 +314,6 @@ uint32_t list_load(void *sectorBuffer, uint8_t command, uint16_t argument)
 	while (hasNext)
 	{
 		sendCommand(command, argument);
-
 		startCDROMRead(
 			100,
 			sectorBuffer,
@@ -336,8 +336,7 @@ uint32_t list_load(void *sectorBuffer, uint8_t command, uint16_t argument)
 		command = COMMAND_GET_NEXT_CONTENTS;
 	}
 
-	file_manager_sort(fileEntryCount);
-	printf("fileEntryCount %i\n", fileEntryCount);
+	//file_manager_sort(fileEntryCount);
 	return fileEntryCount;
 }
 
@@ -368,7 +367,6 @@ int main(int argc, const char **argv)
 	uint8_t currentCommand = COMMAND_NONE;
 
 	printf("Hello from menu loader!\n");
-	printf("fileData size %i", sizeof(fileData));
 
 	if ((GPU_GP1 & GP1_STAT_FB_MODE_BITMASK) == GP1_STAT_FB_MODE_PAL)
 	{
@@ -662,14 +660,16 @@ int main(int argc, const char **argv)
 			}
 			else if (currentCommand == COMMAND_GOTO_DIRECTORY)
 			{
-				fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_DIRECTORY, selectedindex - 1);
+				uint16_t index = file_manager_get_file_index(selectedindex - 1);
+				fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_DIRECTORY, index);
 				selectedindex = 1;
 			}
 			else if (currentCommand == COMMAND_MOUNT_FILE)
 			{
-				sendCommand(COMMAND_MOUNT_FILE, selectedindex - 1);
-				//softReset();
-				softFastReboot();
+				uint16_t index = file_manager_get_file_index(selectedindex - 1);
+				sendCommand(COMMAND_MOUNT_FILE, index);
+				softReset();
+				//softFastReboot();
 			}
 			
 			currentCommand = COMMAND_NONE;

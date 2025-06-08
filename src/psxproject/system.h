@@ -87,7 +87,7 @@ __attribute__((always_inline)) static inline void flushWriteQueue(void) {
 static inline void initThread(
 	Thread *thread, ArgFunction func, void *arg, void *stack
 ) {
-	register uint32_t gp __asm__("gp");
+	register uint32_t gp = 0; __asm__("gp");
 
 	thread->pc = (uint32_t) func;
 	thread->a0 = (uint32_t) arg;

@@ -55,6 +55,11 @@ fileData* file_manager_get_file_data(uint16_t index)
 	return &fileDataBuffer[fileIndex];
 }
 
+uint16_t file_manager_get_file_index(uint16_t index)
+{
+	return fileIndexBuffer[index];
+}
+
 void file_manager_sort(int count)
 {
 	file_manager_quicksort(0, count - 1);
