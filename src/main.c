@@ -49,6 +49,9 @@
 #include <stdlib.h>
 #include "file_manager.h"
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+
 #define LISTING_SIZE 2324
 #define MAX_FILES 4096
 
@@ -322,37 +325,18 @@ uint32_t list_load(void *sectorBuffer, uint8_t command, uint16_t argument)
 			true,
 			true);
 
-		// printf("hex log\n");
-		// // printf("buffer %s\n",sectorBuffer);
-		// for (int i = 0; i < 2340; i++)
-		// {
-		// 	char c = ((unsigned char *)sectorBuffer)[i];
-		// 	printf("%02X ", c);
-		// 	if ((i + 1) % 16 == 0)
-		// 		printf("\n"); // optional: newline every 16 bytes
-		// }
-
 		hasNext = doLookup(&fileEntryCount, ((char*)sectorBuffer) + 12);
 		command = COMMAND_GET_NEXT_CONTENTS;
+		argument = fileEntryCount;
 	}
 
-	//file_manager_sort(fileEntryCount);
+	printf("do sort\n");
+	file_manager_sort(fileEntryCount);
+	printf("do clean\n");
+	file_manager_clean_list(&fileEntryCount);
 	return fileEntryCount;
 }
 
-// offset + (upper 4 bits = dir or not) 2x4096=8192
-// 0
-// 20;
-// 25...
-// end = 0xffff
-
-// strings
-
-
-
-// when requesting a sector using size 2340, and since data is expected to be 2324 bytes long, is it correct from what i see it has 12 byte header and 4 byte footer
-
-uint8_t test[] = {0x50, 0xfa, 0xf0, 0xf1};
 int main(int argc, const char **argv)
 {
 
@@ -364,7 +348,7 @@ int main(int argc, const char **argv)
 
 	file_manager_init();
 
-	uint8_t currentCommand = COMMAND_NONE;
+	uint8_t currentCommand = COMMAND_GOTO_ROOT;
 
 	printf("Hello from menu loader!\n");
 
@@ -403,10 +387,10 @@ int main(int argc, const char **argv)
 	// printf("format s %s\n", txtBuffer2);
 	///
 
-	uint32_t fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_ROOT, 0);
+	uint32_t fileEntryCount = 0;
 
 	// printf("disk buffer %s\n", txtBuffer);
-	uint16_t selectedindex = 1;
+	uint16_t selectedindex = 0;
 
 	int startnumber = 0;
 
@@ -438,7 +422,7 @@ int main(int argc, const char **argv)
 		ptr[3] = gp0_fbOrigin(bufferX, bufferY);
 
 		ptr = allocatePacket(chain, 3);
-		ptr[0] = gp0_rgb(0x5e, 0x8b, 0xeb) | gp0_vramFill();
+		ptr[0] = gp0_rgb(0x40, 0x40, 0x40) | gp0_vramFill();
 		ptr[1] = gp0_xy(bufferX, bufferY);
 		ptr[2] = gp0_xy(SCREEN_WIDTH, SCREEN_HEIGHT);
 		char controllerbuffer[256];
@@ -449,55 +433,25 @@ int main(int argc, const char **argv)
 		uint16_t buttons = getButtonPress(0);
 		uint16_t pressedButtons = ~previousButtons & buttons;
 
+		const uint16_t pageSize = 18;
+
 		if (creditsmenu == 0)
 		{
 			if (pressedButtons & BUTTON_MASK_UP)
 			{
-				if (selectedindex > 1)
-				{
-					selectedindex = selectedindex - 1;
-					if (startnumber - selectedindex == 0)
-					{
-						startnumber = startnumber - 1;
-					}
-				}
+				selectedindex = selectedindex > 0 ? selectedindex - 1 : selectedindex; 
 			}
 			if (pressedButtons & BUTTON_MASK_DOWN)
 			{
-				printf("DEBUG:DOWN  :%d\n", selectedindex);
-				if (selectedindex < fileEntryCount)
-				{
-					selectedindex = selectedindex + 1;
-					if (selectedindex > 20)
-					{
-						startnumber = selectedindex - 20;
-					}
-				}
+				selectedindex = selectedindex < (int)(fileEntryCount - 1) ? selectedindex + 1 : selectedindex;
 			}
-
-			if (pressedButtons & BUTTON_MASK_RIGHT)
-			{
-				if (selectedindex < fileEntryCount - 20)
-				{
-					selectedindex = selectedindex + 20;
-					startnumber = startnumber + 20;
-				}
-			}
-
 			if (pressedButtons & BUTTON_MASK_LEFT)
 			{
-				if (selectedindex > 20)
-				{
-					selectedindex = selectedindex - 20;
-					if (startnumber - 20 <= 0)
-					{
-						startnumber = 0;
-					}
-					else
-					{
-						startnumber = startnumber - 20;
-					}
-				}
+				selectedindex = selectedindex >= pageSize ? selectedindex - pageSize : 0; 
+			}
+			if (pressedButtons & BUTTON_MASK_RIGHT)
+			{
+				selectedindex = selectedindex < (int)(fileEntryCount - (pageSize + 1)) ? selectedindex + pageSize : fileEntryCount - 1;
 			}
 
 			if (pressedButtons & BUTTON_MASK_START)
@@ -519,7 +473,7 @@ int main(int argc, const char **argv)
 
 			if (pressedButtons & BUTTON_MASK_X)
 			{
-				fileData* file = file_manager_get_file_data(selectedindex - 1);
+				fileData* file = file_manager_get_file_data(selectedindex);
 				if (file->flag == 0)
 				{
 					currentCommand = COMMAND_MOUNT_FILE;
@@ -576,41 +530,42 @@ int main(int argc, const char **argv)
 			}
 			else
 			{
-
 				char fbuffer[32];
-				snprintf(fbuffer, sizeof(fbuffer), "index: %i of %i", selectedindex, fileEntryCount);
+				snprintf(fbuffer, sizeof(fbuffer), "Index: %i of %i", selectedindex + 1, fileEntryCount);
 				printString(chain, &font, 206, 10, fbuffer);
 
-				if (fileEntryCount > 0)
+				int32_t start = 0;
+				if ((int32_t)fileEntryCount >= pageSize)
 				{
-					for (int i = startnumber; i < startnumber + 18; i++)
+					start = MIN(MAX(selectedindex - (pageSize / 2), 0), (int32_t)fileEntryCount - pageSize);
+				}
+
+				int32_t itemCount = MIN(start + pageSize, (int32_t)fileEntryCount) - start; 
+				if (itemCount > 0)
+				{
+					for (int32_t i = 0; i < itemCount; i++)
 					{
-						fileData* file = file_manager_get_file_data(i);
+						uint32_t index = start + i;
+
+						fileData* file = file_manager_get_file_data(index);
 
 						char buffer[300];
-						snprintf(buffer, sizeof(buffer), "%i %s %s\n", i + 1, file->flag == 1 ? "\x92" : "\x8f", file->filename);
-						printString(chain, &font, 12, 30 + (i - startnumber) * 10, buffer);
+						snprintf(buffer, sizeof(buffer), "%-4d %s %s\n", index + 1, file->flag == 0 ? "\x8f" : "\x92", file->filename);
+						printString(chain, &font, 12, 30 + (i * 10), buffer);
 
-						if (i + 1 == selectedindex)
+						if (index == selectedindex)
 						{
-
-							printString(
-								chain, &font, 5, 30 + (i - startnumber) * 10,
-								">");
-						}
-						if ((uint32_t)i == fileEntryCount - 1)
-						{
-							break;
+							printString(chain, &font, 5, 30 + (i - startnumber) * 10, ">");
 						}
 					}
-
 					
-					printString(chain, &font, 12, 220, "X Select, [] Parent Folder");
 				}
 				else
 				{
 					printString(chain, &font, 40, 40, "Empty Folder");
 				}
+
+				printString(chain, &font, 12, 220, "\x91 Select, \x90 Parent Folder");
 
 			}
 
@@ -649,10 +604,14 @@ int main(int argc, const char **argv)
 
 		if (currentCommand != COMMAND_NONE)
 		{
-			if (currentCommand == COMMAND_GOTO_PARENT)
+			if (currentCommand == COMMAND_GOTO_ROOT)
+			{
+				fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_ROOT, 0);
+			}
+			else if (currentCommand == COMMAND_GOTO_PARENT)
 			{
 				fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_PARENT, 0);
-				selectedindex = 1;
+				selectedindex = 0;
 			}
 			else if (currentCommand == COMMAND_BOOTLOADER)
 			{
@@ -660,16 +619,16 @@ int main(int argc, const char **argv)
 			}
 			else if (currentCommand == COMMAND_GOTO_DIRECTORY)
 			{
-				uint16_t index = file_manager_get_file_index(selectedindex - 1);
+				uint16_t index = file_manager_get_file_index(selectedindex);
 				fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_DIRECTORY, index);
-				selectedindex = 1;
+				selectedindex = 0;
 			}
 			else if (currentCommand == COMMAND_MOUNT_FILE)
 			{
-				uint16_t index = file_manager_get_file_index(selectedindex - 1);
+				uint16_t index = file_manager_get_file_index(selectedindex);
 				sendCommand(COMMAND_MOUNT_FILE, index);
-				softReset();
-				//softFastReboot();
+				delayMicroseconds(40000);
+				softFastReboot();
 			}
 			
 			currentCommand = COMMAND_NONE;

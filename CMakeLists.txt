@@ -50,7 +50,6 @@ target_include_directories(
 # here.
 add_executable(
     ${PROJECT_NAME}
-    src/sort.c
     src/gpu.c
     src/main.c
     src/file_manager.c
