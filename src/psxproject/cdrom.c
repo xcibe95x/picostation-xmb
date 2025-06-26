@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdatomic.h>
-#include "controller.h"
+#include "delay.h"
 
 volatile bool waitingForInt1;
 volatile bool waitingForInt2;

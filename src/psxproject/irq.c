@@ -8,7 +8,7 @@
 #include "stream.h"
 
 #include "ps1/registers.h"
-#include "controller.h"
+#include "delay.h"
 #include "system.h"
 
 volatile bool vblank = false;

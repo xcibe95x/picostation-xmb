@@ -55,9 +55,10 @@ add_executable(
     src/file_manager.c
     src/controller.c
     src/psxproject/cdrom.c
-    src/psxproject/system.c
+    src/psxproject/delay.c
     src/psxproject/filesystem.c
     src/psxproject/irq.c
+    src/psxproject/system.c
     src/psxproject/stream.c
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE common)

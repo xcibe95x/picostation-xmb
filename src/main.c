@@ -184,13 +184,24 @@ static const SpriteInfo fontSprites[] = {
 	{.x = 60, .y = 73, .width = 10, .height = 10}  //
 };
 
-#define COMMAND_NONE 0x0
-#define COMMAND_GOTO_ROOT 0x1
-#define COMMAND_GOTO_PARENT 0x2
-#define COMMAND_GOTO_DIRECTORY 0x3
-#define COMMAND_GET_NEXT_CONTENTS 0x4
-#define COMMAND_MOUNT_FILE 0x5
-#define COMMAND_BOOTLOADER 0xa
+typedef enum
+{
+	COMMAND_NONE = 0x0,
+	COMMAND_GOTO_ROOT = 0x1,
+	COMMAND_GOTO_PARENT = 0x2,
+	COMMAND_GOTO_DIRECTORY = 0x3,
+	COMMAND_GET_NEXT_CONTENTS = 0x4,
+	COMMAND_MOUNT_FILE = 0x5,
+	COMMAND_IO_COMMAND = 0x6,
+	COMMAND_IO_DATA = 0x7,
+	COMMAND_BOOTLOADER = 0xA
+} COMMAND;
+
+typedef enum
+{
+	IO_COMMAND_NONE = 0x0,
+	IO_COMMAND_GAMEID = 0x1,
+} IO_COMMAND;
 
 #define FONT_FIRST_TABLE_CHAR '!'
 #define FONT_SPACE_WIDTH 4
@@ -199,9 +210,7 @@ static const SpriteInfo fontSprites[] = {
 
 static void sendCommand(uint8_t command, uint16_t argument)
 {
-	//printf("DEBUG:X sending command %i with arg  %i\n", command, argument);
-	uint8_t test[] = { CDROM_TEST_DSP_CMD, (uint8_t)(0xF0 | command), (uint8_t)((argument >> 8) & 0xFF), (uint8_t)(argument & 0xFF) };
-	//uint8_t test[] = {CDROM_TEST_DSP_CMD, 0xF0 | command, (argument >> 8) & 0xFF, argument & 0xFF};
+	uint8_t test[] = {CDROM_TEST_DSP_CMD, (uint8_t)(0xF0 | command), (uint8_t)((argument >> 8) & 0xFF), (uint8_t)(argument & 0xFF)};
 	issueCDROMCommand(CDROM_CMD_TEST, test, sizeof(test));
 }
 
@@ -291,7 +300,7 @@ void wait_ms(uint32_t ms)
 	}
 }
 
-bool doLookup(uint16_t* itemCount, char *sectorBuffer)
+bool doLookup(uint16_t *itemCount, char *sectorBuffer)
 {
 	uint16_t offset = 0;
 	while (offset < LISTING_SIZE && *itemCount < MAX_FILES)
@@ -325,14 +334,12 @@ uint32_t list_load(void *sectorBuffer, uint8_t command, uint16_t argument)
 			true,
 			true);
 
-		hasNext = doLookup(&fileEntryCount, ((char*)sectorBuffer) + 12);
+		hasNext = doLookup(&fileEntryCount, ((char *)sectorBuffer) + 12);
 		command = COMMAND_GET_NEXT_CONTENTS;
 		argument = fileEntryCount;
 	}
 
-	printf("do sort\n");
 	file_manager_sort(fileEntryCount);
-	printf("do clean\n");
 	file_manager_clean_list(&fileEntryCount);
 	return fileEntryCount;
 }
@@ -435,11 +442,16 @@ int main(int argc, const char **argv)
 
 		const uint16_t pageSize = 18;
 
+		if (pressedButtons & BUTTON_MASK_SELECT)
+		{
+			creditsmenu = creditsmenu == 0 ? 1 : 0;
+		}
+
 		if (creditsmenu == 0)
 		{
 			if (pressedButtons & BUTTON_MASK_UP)
 			{
-				selectedindex = selectedindex > 0 ? selectedindex - 1 : selectedindex; 
+				selectedindex = selectedindex > 0 ? selectedindex - 1 : selectedindex;
 			}
 			if (pressedButtons & BUTTON_MASK_DOWN)
 			{
@@ -447,7 +459,7 @@ int main(int argc, const char **argv)
 			}
 			if (pressedButtons & BUTTON_MASK_LEFT)
 			{
-				selectedindex = selectedindex >= pageSize ? selectedindex - pageSize : 0; 
+				selectedindex = selectedindex >= pageSize ? selectedindex - pageSize : 0;
 			}
 			if (pressedButtons & BUTTON_MASK_RIGHT)
 			{
@@ -469,11 +481,41 @@ int main(int argc, const char **argv)
 				// WriteParam( 0xf1 );
 				//		WriteCommand( 0x19 );
 				//	AckWithTimeout(500000);
+
+				// uint16_t index = file_manager_get_file_index(selectedindex);
+				// sendCommand(COMMAND_MOUNT_FILE, index);
+
+				// char txtBuffer2[2324];
+				// txtBuffer2[0] = 0;
+
+				// initFilesystem();
+				// file_load("SYSTEM.CNF;1", txtBuffer2);
+
+				// printf("SYSTEM.CNF contents = '\n%s'\n", txtBuffer2);
+
+				const char* gameid = "SLES-01684";
+				sendCommand(COMMAND_IO_COMMAND, IO_COMMAND_GAMEID);
+				uint32_t len = strlen(gameid);
+				size_t paddedLen = len + 1; 
+				for (uint32_t i = 0; i < paddedLen; i += 2)
+				{
+					delayMicroseconds(10000);
+					uint16_t pair = 0;
+					if (i < len)
+					{
+ 						pair |= (uint8_t)gameid[i] << 8;
+					}
+					if (i + 1 < len)
+					{
+						pair |= (uint8_t)gameid[i + 1];
+					}
+					sendCommand(COMMAND_IO_DATA, pair);
+				}
 			}
 
 			if (pressedButtons & BUTTON_MASK_X)
 			{
-				fileData* file = file_manager_get_file_data(selectedindex);
+				fileData *file = file_manager_get_file_data(selectedindex);
 				if (file->flag == 0)
 				{
 					currentCommand = COMMAND_MOUNT_FILE;
@@ -503,23 +545,6 @@ int main(int argc, const char **argv)
 				currentCommand = COMMAND_BOOTLOADER;
 			}
 
-			if (pressedButtons & BUTTON_MASK_SELECT)
-			{
-				creditsmenu = 1;
-			}
-
-			// char strbuffer[1024];
-
-			// snprintf(strbuffer, sizeof(strbuffer), "%s", txtBuffer);
-			// printString(chain, &font, 12, 200, strbuffer);
-			// printf(strbuffer);
-			// if ( loadchecker == 0){
-			//	printString(chain, &font, 12, 220, "file not found");
-			// } else {
-			//	printString(chain, &font, 12, 220, "file found actually");
-			//	printf("found file\n");
-			// }
-
 			printString(
 				chain, &font, 16, 10,
 				"PicoStation Plus Menu");
@@ -540,14 +565,14 @@ int main(int argc, const char **argv)
 					start = MIN(MAX(selectedindex - (pageSize / 2), 0), (int32_t)fileEntryCount - pageSize);
 				}
 
-				int32_t itemCount = MIN(start + pageSize, (int32_t)fileEntryCount) - start; 
+				int32_t itemCount = MIN(start + pageSize, (int32_t)fileEntryCount) - start;
 				if (itemCount > 0)
 				{
 					for (int32_t i = 0; i < itemCount; i++)
 					{
 						uint32_t index = start + i;
 
-						fileData* file = file_manager_get_file_data(index);
+						fileData *file = file_manager_get_file_data(index);
 
 						char buffer[300];
 						snprintf(buffer, sizeof(buffer), "%-4d %s %s\n", index + 1, file->flag == 0 ? "\x8f" : "\x92", file->filename);
@@ -558,7 +583,6 @@ int main(int argc, const char **argv)
 							printString(chain, &font, 5, 30 + (i - startnumber) * 10, ">");
 						}
 					}
-					
 				}
 				else
 				{
@@ -566,9 +590,7 @@ int main(int argc, const char **argv)
 				}
 
 				printString(chain, &font, 12, 220, "\x91 Select, \x90 Parent Folder");
-
 			}
-
 		}
 		else
 		{
@@ -582,11 +604,6 @@ int main(int argc, const char **argv)
 			printString(
 				chain, &font, 40, 120,
 				"https://github.com/team-Resurgent/picostation-menu");
-
-			if (pressedButtons & BUTTON_MASK_CIRCLE)
-			{
-				creditsmenu = 0;
-			}
 		}
 
 		//	char printBuffer[1024];
@@ -615,7 +632,7 @@ int main(int argc, const char **argv)
 			}
 			else if (currentCommand == COMMAND_BOOTLOADER)
 			{
-				//sendCommand(COMMAND_BOOTLOADER, 0xBEEF);
+				// sendCommand(COMMAND_BOOTLOADER, 0xBEEF);
 			}
 			else if (currentCommand == COMMAND_GOTO_DIRECTORY)
 			{
@@ -630,7 +647,7 @@ int main(int argc, const char **argv)
 				delayMicroseconds(40000);
 				softFastReboot();
 			}
-			
+
 			currentCommand = COMMAND_NONE;
 		}
 	}

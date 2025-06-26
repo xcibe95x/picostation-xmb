@@ -15,7 +15,8 @@
 			"xmemory": "c",
 			"xutility": "c",
 			"ios": "c",
-			"xiosbase": "c"
+			"xiosbase": "c",
+			"system.h": "c"
 		}
 	}
 }
