@@ -194,7 +194,7 @@ typedef enum
 	MENU_COMMAND_GOTO_DIRECTORY = 0x3,
 	MENU_COMMAND_MOUNT_FILE_FAST = 0x4,
 	MENU_COMMAND_MOUNT_FILE_SLOW = 0x5,
-	MENU_COMMAND_BOOTLOADER = 0x5
+	MENU_COMMAND_BOOTLOADER = 0x6
 } MENU_COMMAND;
 
 typedef enum
@@ -625,7 +625,7 @@ int main(int argc, const char **argv)
 				fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_DIRECTORY, index);
 				selectedindex = 0;
 			}
-			else if (currentCommand == MENU_COMMAND_MOUNT_FILE_FAST || currentCommand == MENU_COMMAND_MOUNT_FILE_SLOW)
+			else if ((currentCommand == MENU_COMMAND_MOUNT_FILE_FAST) || (currentCommand == MENU_COMMAND_MOUNT_FILE_SLOW))
 			{
 				printf("DEBUG: selectedindex :%d\n", selectedindex);
 
