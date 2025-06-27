@@ -83,11 +83,11 @@ endfunction()
 # into the executable. The addBinaryFile() macro is defined in setup.cmake; you
 # may call it multiple times to embed other data into the binary.
 convertImage(assets/images/font.png 4 fontTexture.dat fontPalette.dat)
-convertImage(assets/images/pilogo.png 4 piLogo.dat piPalette.dat)
+convertImage(assets/images/picostationlogo.png 4 logoTexture.dat logoPalette.dat)
 addBinaryFile(${PROJECT_NAME} fontTexture "${PROJECT_BINARY_DIR}/fontTexture.dat")
 addBinaryFile(${PROJECT_NAME} fontPalette "${PROJECT_BINARY_DIR}/fontPalette.dat")
-addBinaryFile(${PROJECT_NAME} piTexture "${PROJECT_BINARY_DIR}/piLogo.dat")
-addBinaryFile(${PROJECT_NAME} piPalette "${PROJECT_BINARY_DIR}/piPalette.dat")
+addBinaryFile(${PROJECT_NAME} logoTexture "${PROJECT_BINARY_DIR}/logoTexture.dat")
+addBinaryFile(${PROJECT_NAME} logoPalette "${PROJECT_BINARY_DIR}/logoPalette.dat")
 
 # Add a step to run convertExecutable.py after the executable is compiled in
 # order to convert it into a PS1 executable. By default all custom commands run

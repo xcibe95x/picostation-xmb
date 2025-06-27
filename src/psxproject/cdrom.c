@@ -270,7 +270,7 @@ size_t file_load(const char *name, void *sectorBuffer){
 		return 1;
 	} else {
 	printf("found file\n");
-	printf("LBA: %d", modelLba);
+	printf("LBA: %d\n", modelLba);
 	}
 
 	startCDROMRead(

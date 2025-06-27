@@ -181,12 +181,24 @@ static const SpriteInfo fontSprites[] = {
 	{.x = 24, .y = 73, .width = 10, .height = 10}, //
 	{.x = 36, .y = 73, .width = 10, .height = 9},  //
 	{.x = 48, .y = 73, .width = 10, .height = 9},  //
-	{.x = 60, .y = 73, .width = 10, .height = 10}  //
+	{.x = 60, .y = 73, .width = 10, .height = 10},  //
+	{.x = 72, .y = 73, .width = 10, .height = 10},  //
+	{.x = 85, .y = 73, .width = 8, .height = 8}  //
 };
 
 typedef enum
 {
-	COMMAND_NONE = 0x0,
+	MENU_COMMAND_NONE = 0x0,
+	MENU_COMMAND_GOTO_ROOT = 0x1,
+	MENU_COMMAND_GOTO_PARENT = 0x2,
+	MENU_COMMAND_GOTO_DIRECTORY = 0x3,
+	MENU_COMMAND_MOUNT_FILE_FAST = 0x4,
+	MENU_COMMAND_MOUNT_FILE_SLOW = 0x5,
+	MENU_COMMAND_BOOTLOADER = 0x5
+} MENU_COMMAND;
+
+typedef enum
+{
 	COMMAND_GOTO_ROOT = 0x1,
 	COMMAND_GOTO_PARENT = 0x2,
 	COMMAND_GOTO_DIRECTORY = 0x3,
@@ -282,7 +294,11 @@ static void printString(
 #define FONT_HEIGHT 84
 #define FONT_COLOR_DEPTH GP0_COLOR_4BPP
 
-extern const uint8_t fontTexture[], fontPalette[], piTexture[];
+#define TEXTURE_WIDTH 128
+#define TEXTURE_HEIGHT 20
+#define TEXTURE_COLOR_DEPTH GP0_COLOR_4BPP
+
+extern const uint8_t fontTexture[], fontPalette[], logoTexture[], logoPalette[];
 
 #define c_maxFilePathLength 255
 #define c_maxFilePathLengthWithTerminator c_maxFilePathLength + 1
@@ -355,7 +371,7 @@ int main(int argc, const char **argv)
 
 	file_manager_init();
 
-	uint8_t currentCommand = COMMAND_GOTO_ROOT;
+	uint8_t currentCommand = MENU_COMMAND_GOTO_ROOT;
 
 	printf("Hello from menu loader!\n");
 
@@ -376,10 +392,18 @@ int main(int argc, const char **argv)
 	GPU_GP1 = gp1_dispBlank(false);
 
 	TextureInfo font;
+	TextureInfo logo;
 
 	uploadIndexedTexture(
 		&font, fontTexture, fontPalette, SCREEN_WIDTH * 2, 0, SCREEN_WIDTH * 2,
-		FONT_HEIGHT, FONT_WIDTH, FONT_HEIGHT, FONT_COLOR_DEPTH);
+		FONT_HEIGHT, FONT_WIDTH, FONT_HEIGHT, FONT_COLOR_DEPTH
+	);
+
+	uploadIndexedTexture(
+		&logo, logoTexture, logoPalette, SCREEN_WIDTH * 2, FONT_WIDTH,
+		SCREEN_WIDTH * 2, TEXTURE_HEIGHT + (FONT_WIDTH*2), TEXTURE_WIDTH, TEXTURE_HEIGHT,
+		TEXTURE_COLOR_DEPTH
+	);
 
 	DMAChain dmaChains[2];
 	bool usingSecondFrame = false;
@@ -398,8 +422,6 @@ int main(int argc, const char **argv)
 
 	// printf("disk buffer %s\n", txtBuffer);
 	uint16_t selectedindex = 0;
-
-	int startnumber = 0;
 
 	// uint16_t sectorBuffer[1024];
 
@@ -424,14 +446,25 @@ int main(int argc, const char **argv)
 		ptr = allocatePacket(chain, 4);
 		ptr[0] = gp0_texpage(0, true, false);
 		ptr[1] = gp0_fbOffset1(bufferX, bufferY);
-		ptr[2] = gp0_fbOffset2(
-			bufferX + SCREEN_WIDTH - 1, bufferY + SCREEN_HEIGHT - 2);
+		ptr[2] = gp0_fbOffset2(bufferX + SCREEN_WIDTH - 1, bufferY + SCREEN_HEIGHT - 2);
 		ptr[3] = gp0_fbOrigin(bufferX, bufferY);
 
-		ptr = allocatePacket(chain, 3);
-		ptr[0] = gp0_rgb(0x40, 0x40, 0x40) | gp0_vramFill();
+		ptr    = allocatePacket(chain, 3);
+		ptr[0] = gp0_rgb(64, 64, 64) | gp0_vramFill();
 		ptr[1] = gp0_xy(bufferX, bufferY);
 		ptr[2] = gp0_xy(SCREEN_WIDTH, SCREEN_HEIGHT);
+
+		//draw logo
+		//if (firstboot == 0 && loadingmenu == 0){
+			ptr    = allocatePacket(chain, 5);
+			ptr[0] = gp0_texpage(logo.page, false, false);
+			ptr[1] = gp0_rectangle(true, true, true);
+			ptr[2] = gp0_xy(96, 10);
+			ptr[3] = gp0_uv(logo.u, logo.v, logo.clut);
+			ptr[4] = gp0_xy(logo.width, logo.height);
+		//}
+
+
 		char controllerbuffer[256];
 		// get the controller button press
 
@@ -440,7 +473,7 @@ int main(int argc, const char **argv)
 		uint16_t buttons = getButtonPress(0);
 		uint16_t pressedButtons = ~previousButtons & buttons;
 
-		const uint16_t pageSize = 18;
+		const uint16_t pageSize = 16;
 
 		if (pressedButtons & BUTTON_MASK_SELECT)
 		{
@@ -468,48 +501,10 @@ int main(int argc, const char **argv)
 
 			if (pressedButtons & BUTTON_MASK_START)
 			{
-				printf("DEBUG: selectedindex :%d\n", selectedindex);
-				//			 SpicyJPEG's code
-				//			uint8_t test[] = {0x50, 0xd1, 0xab,0xfe} ;
-				//			issueCDROMCommand(0x19,test,sizeof(test));
-
-				//			 Rama's code
-				//			StartCommand();
-				//		WriteParam( 0x50 );
-				//		WriteParam( 0xf2 );
-				//		WriteParam( selectedindex );
-				// WriteParam( 0xf1 );
-				//		WriteCommand( 0x19 );
-				//	AckWithTimeout(500000);
-
-				// uint16_t index = file_manager_get_file_index(selectedindex);
-				// sendCommand(COMMAND_MOUNT_FILE, index);
-
-				// char txtBuffer2[2324];
-				// txtBuffer2[0] = 0;
-
-				// initFilesystem();
-				// file_load("SYSTEM.CNF;1", txtBuffer2);
-
-				// printf("SYSTEM.CNF contents = '\n%s'\n", txtBuffer2);
-
-				const char* gameid = "SLES-01684";
-				sendCommand(COMMAND_IO_COMMAND, IO_COMMAND_GAMEID);
-				uint32_t len = strlen(gameid);
-				size_t paddedLen = len + 1; 
-				for (uint32_t i = 0; i < paddedLen; i += 2)
+				fileData *file = file_manager_get_file_data(selectedindex);
+				if (file->flag == 0)
 				{
-					delayMicroseconds(10000);
-					uint16_t pair = 0;
-					if (i < len)
-					{
- 						pair |= (uint8_t)gameid[i] << 8;
-					}
-					if (i + 1 < len)
-					{
-						pair |= (uint8_t)gameid[i + 1];
-					}
-					sendCommand(COMMAND_IO_DATA, pair);
+					currentCommand = MENU_COMMAND_MOUNT_FILE_SLOW;
 				}
 			}
 
@@ -518,46 +513,33 @@ int main(int argc, const char **argv)
 				fileData *file = file_manager_get_file_data(selectedindex);
 				if (file->flag == 0)
 				{
-					currentCommand = COMMAND_MOUNT_FILE;
+					currentCommand = MENU_COMMAND_MOUNT_FILE_FAST;
 				}
 				else
 				{
-					currentCommand = COMMAND_GOTO_DIRECTORY;
+					currentCommand = MENU_COMMAND_GOTO_DIRECTORY;
 				}
-
-				//		 Rama's code
-				//		StartCommand();
-				//		WriteParam( 0x50 );
-				//		WriteParam( 0xd1 );
-				//		WriteParam( 0xab );
-				//		WriteParam( 0xfe );
-				//		WriteCommand( 0x19 );
-				//		AckWithTimeout(500000);
 			}
 
 			if (pressedButtons & BUTTON_MASK_SQUARE)
 			{
-				currentCommand = COMMAND_GOTO_PARENT;
+				currentCommand = MENU_COMMAND_GOTO_PARENT;
 			}
 
 			if (pressedButtons & BUTTON_MASK_TRIANGLE)
 			{
-				currentCommand = COMMAND_BOOTLOADER;
+				currentCommand = MENU_COMMAND_BOOTLOADER;
 			}
 
-			printString(
-				chain, &font, 16, 10,
-				"PicoStation Plus Menu");
-
-			if (currentCommand != COMMAND_NONE)
+			if (currentCommand != MENU_COMMAND_NONE)
 			{
 				printString(chain, &font, 40, 40, "Please Wait Loading...");
 			}
 			else
 			{
 				char fbuffer[32];
-				snprintf(fbuffer, sizeof(fbuffer), "Index: %i of %i", selectedindex + 1, fileEntryCount);
-				printString(chain, &font, 206, 10, fbuffer);
+				snprintf(fbuffer, sizeof(fbuffer), "%i of %i", selectedindex + 1, fileEntryCount);
+				printString(chain, &font, 16, 16, fbuffer);
 
 				int32_t start = 0;
 				if ((int32_t)fileEntryCount >= pageSize)
@@ -572,16 +554,19 @@ int main(int argc, const char **argv)
 					{
 						uint32_t index = start + i;
 
+						if (index == selectedindex)
+						{
+							ptr = allocatePacket(chain, 3);
+							ptr[0] = gp0_rgb(48, 48, 48) | gp0_rectangle(false, false, false);
+							ptr[1] = gp0_xy(0, 33 + (i * 11));
+							ptr[2] = gp0_xy(320, 12);
+						}
+
 						fileData *file = file_manager_get_file_data(index);
 
 						char buffer[300];
 						snprintf(buffer, sizeof(buffer), "%-4d %s %s\n", index + 1, file->flag == 0 ? "\x8f" : "\x92", file->filename);
-						printString(chain, &font, 12, 30 + (i * 10), buffer);
-
-						if (index == selectedindex)
-						{
-							printString(chain, &font, 5, 30 + (i - startnumber) * 10, ">");
-						}
+						printString(chain, &font, 16, 34 + (i * 11), buffer);
 					}
 				}
 				else
@@ -589,7 +574,7 @@ int main(int argc, const char **argv)
 					printString(chain, &font, 40, 40, "Empty Folder");
 				}
 
-				printString(chain, &font, 12, 220, "\x91 Select, \x90 Parent Folder");
+				printString(chain, &font, 12, 212, "\x91 Select / Fast Boot, \x96 Regular Boot, \x90 Parent Folder");
 			}
 		}
 		else
@@ -619,36 +604,96 @@ int main(int argc, const char **argv)
 		waitForVblank();
 		sendLinkedList(chain->data);
 
-		if (currentCommand != COMMAND_NONE)
+		if (currentCommand != MENU_COMMAND_NONE)
 		{
-			if (currentCommand == COMMAND_GOTO_ROOT)
+			if (currentCommand == MENU_COMMAND_GOTO_ROOT)
 			{
 				fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_ROOT, 0);
 			}
-			else if (currentCommand == COMMAND_GOTO_PARENT)
+			else if (currentCommand == MENU_COMMAND_GOTO_PARENT)
 			{
 				fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_PARENT, 0);
 				selectedindex = 0;
 			}
-			else if (currentCommand == COMMAND_BOOTLOADER)
+			else if (currentCommand == MENU_COMMAND_BOOTLOADER)
 			{
 				// sendCommand(COMMAND_BOOTLOADER, 0xBEEF);
 			}
-			else if (currentCommand == COMMAND_GOTO_DIRECTORY)
+			else if (currentCommand == MENU_COMMAND_GOTO_DIRECTORY)
 			{
 				uint16_t index = file_manager_get_file_index(selectedindex);
 				fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_DIRECTORY, index);
 				selectedindex = 0;
 			}
-			else if (currentCommand == COMMAND_MOUNT_FILE)
+			else if (currentCommand == MENU_COMMAND_MOUNT_FILE_FAST || currentCommand == MENU_COMMAND_MOUNT_FILE_SLOW)
 			{
+				printf("DEBUG: selectedindex :%d\n", selectedindex);
+
 				uint16_t index = file_manager_get_file_index(selectedindex);
 				sendCommand(COMMAND_MOUNT_FILE, index);
+
+				initFilesystem();
+
+				char gameId[2048];
+				strcpy(gameId, "cdrom:\\PS.EXE;1");
+
+				char configBuffer[2048];
+				if (file_load("SYSTEM.CNF;1", configBuffer) == 0)
+				{
+					printf("SYSTEM.CNF contents = '\n%s'\n", configBuffer);
+
+					int i = 0;
+					int j = 0;
+					char tempBuffer[500];
+					memset(tempBuffer, 0, 500);
+					while (configBuffer[i] != '\0' && configBuffer[i] != '\n' && i < 499) {
+						if (configBuffer[i] != ' ' && configBuffer[i] != '\t') { 
+							tempBuffer[j] = configBuffer[i]; 
+							j++;
+						}
+						i++; 
+					}
+
+					char* gameId = tempBuffer;
+					if (strncmp(tempBuffer, "BOOT=", 5) == 0) {
+						gameId = tempBuffer + 5;
+					}
+
+					printf("Game id: %s\n", gameId);
+
+					printf("Sending game id to memcard\n");
+					sendGameID(gameId);
+
+					printf("Sending game id to picostation\n");
+					sendCommand(COMMAND_IO_COMMAND, IO_COMMAND_GAMEID);
+					uint32_t len = strlen(gameId);
+					size_t paddedLen = len + 1; 
+					for (uint32_t i = 0; i < paddedLen; i += 2)
+					{
+						delayMicroseconds(10000);
+						uint16_t pair = 0;
+						if (i < len)
+						{
+							pair |= (uint8_t)gameId[i] << 8;
+						}
+						if (i + 1 < len)
+						{
+							pair |= (uint8_t)gameId[i + 1];
+						}
+						sendCommand(COMMAND_IO_DATA, pair);
+					}
+				}
+
 				delayMicroseconds(40000);
-				softFastReboot();
+
+				if (currentCommand == MENU_COMMAND_MOUNT_FILE_FAST) {
+					softFastReboot();
+				} else {
+					softReset();
+				}
 			}
 
-			currentCommand = COMMAND_NONE;
+			currentCommand = MENU_COMMAND_NONE;
 		}
 	}
 
