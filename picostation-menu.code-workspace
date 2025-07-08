@@ -16,7 +16,8 @@
 			"xutility": "c",
 			"ios": "c",
 			"xiosbase": "c",
-			"system.h": "c"
+			"system.h": "c",
+			"modplayer.h": "c"
 		}
 	}
 }

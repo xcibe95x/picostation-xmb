@@ -6,6 +6,18 @@
 uint16_t* fileIndexBuffer;
 fileData* fileDataBuffer;
 
+int file_manager_compare(uint16_t indexA, uint16_t indexB) 
+{
+    const fileData* a = &fileDataBuffer[indexA];
+    const fileData* b = &fileDataBuffer[indexB];
+
+    if ((a->flag == 1) && (b->flag == 0)) return -1; // Directories come first
+    if ((a->flag == 0) && (b->flag == 1)) return 1;  // Files after directories
+
+    // Both same type, compare names
+    return strcmp(a->filename, b->filename);
+}
+
 void file_manager_quicksort(uint16_t left, uint16_t right) 
 {
     if (left >= right)
@@ -14,15 +26,13 @@ void file_manager_quicksort(uint16_t left, uint16_t right)
     }
 
     int pivotIndex = fileIndexBuffer[(left + right) / 2];
-    const char* pivot = fileDataBuffer[pivotIndex].filename;
 
     int i = left;
     int j = right;
 
     while (i <= j) {
-        while (strcmp(fileDataBuffer[fileIndexBuffer[i]].filename, pivot) < 0) i++;
-        while (strcmp(fileDataBuffer[fileIndexBuffer[j]].filename, pivot) > 0) j--;
-
+        while (file_manager_compare(fileIndexBuffer[i], pivotIndex) < 0) i++;
+        while (file_manager_compare(fileIndexBuffer[j], pivotIndex) > 0) j--;
         if (i <= j) {
             uint16_t temp = fileIndexBuffer[i];
             fileIndexBuffer[i] = fileIndexBuffer[j];

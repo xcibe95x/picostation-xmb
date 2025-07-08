@@ -48,6 +48,8 @@
 #include "psxproject/system.h"
 #include <stdlib.h>
 #include "file_manager.h"
+#include "modplayer.h"
+#include "counters.h"
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -299,6 +301,9 @@ static void printString(
 #define TEXTURE_COLOR_DEPTH GP0_COLOR_4BPP
 
 extern const uint8_t fontTexture[], fontPalette[], logoTexture[], logoPalette[];
+extern const uint8_t timewarped_hit[];
+static uint16_t s_nextCounter = 0;
+
 
 #define c_maxFilePathLength 255
 #define c_maxFilePathLengthWithTerminator c_maxFilePathLength + 1
@@ -324,7 +329,7 @@ bool doLookup(uint16_t *itemCount, char *sectorBuffer)
 		uint16_t length = ((uint8_t *)sectorBuffer)[offset];
 		if (length == 0)
 		{
-			return sectorBuffer[offset + 1] == 1;
+			return sectorBuffer[offset + 1] == 1 || (sectorBuffer[offset + 2] == 0 && sectorBuffer[offset + 3] == 0);
 		}
 		file_manager_init_file_data(*itemCount, sectorBuffer[offset + 1], &sectorBuffer[offset + 2], length);
 		offset += length + 2;
@@ -360,8 +365,18 @@ uint32_t list_load(void *sectorBuffer, uint8_t command, uint16_t argument)
 	return fileEntryCount;
 }
 
+static void checkMusic() {
+    if (((int16_t)(s_nextCounter - COUNTERS[1].value)) <= 0) {
+        MOD_Poll();
+        s_nextCounter += MOD_hblanks;
+    }
+}
+
 int main(int argc, const char **argv)
 {
+	COUNTERS[1].mode = 0x0100;
+    MOD_Load((struct MODFileFormat*)timewarped_hit);
+	s_nextCounter = COUNTERS[1].value + MOD_hblanks;
 
 	initIRQ();
 	initSerialIO(115200);
@@ -597,6 +612,8 @@ int main(int argc, const char **argv)
 		//	printf("LBA: %i \n", modelLba);
 
 		//	printString(chain, &font, 56,100, printBuffer);
+
+		checkMusic();
 
 		previousButtons = buttons;
 		*(chain->nextPacket) = gp0_endTag(0);

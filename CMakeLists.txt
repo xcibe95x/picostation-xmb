@@ -53,6 +53,7 @@ add_executable(
     src/gpu.c
     src/main.c
     src/file_manager.c
+    src/modplayer.c
     src/controller.c
     src/psxproject/cdrom.c
     src/psxproject/delay.c
@@ -84,6 +85,7 @@ endfunction()
 # may call it multiple times to embed other data into the binary.
 convertImage(assets/images/font.png 4 fontTexture.dat fontPalette.dat)
 convertImage(assets/images/picostationlogo.png 4 logoTexture.dat logoPalette.dat)
+addBinaryFile(${PROJECT_NAME} timewarped_hit "${PROJECT_SOURCE_DIR}/timewarped.hit")
 addBinaryFile(${PROJECT_NAME} fontTexture "${PROJECT_BINARY_DIR}/fontTexture.dat")
 addBinaryFile(${PROJECT_NAME} fontPalette "${PROJECT_BINARY_DIR}/fontPalette.dat")
 addBinaryFile(${PROJECT_NAME} logoTexture "${PROJECT_BINARY_DIR}/logoTexture.dat")
