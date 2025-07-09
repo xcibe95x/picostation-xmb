@@ -1,0 +1,8 @@
+#pragma once
+
+#define DEBUG_SPU 0
+#define DEBUG_FS 0
+#define DEBUG_CDROM 0
+#define DEBUG_MAIN 0
+
+#define DEBUG_LOGGING_ENABLED (DEBUG_SPU || DEBUG_FS || DEBUG_CDROM || DEBUG_MAIN)

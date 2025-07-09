@@ -166,50 +166,9 @@ bool waitForAcknowledge(int timeout) {
      return respLength;
  }
  
- // All packets sent by controllers in response to a poll command include a 4-bit
- // device type identifier as well as a bitfield describing the state of up to 16
- // buttons.
- static const char *const controllerTypes[] = {
-     "Unknown",            // ID 0x0
-     "Mouse",              // ID 0x1
-     "neGcon",             // ID 0x2
-     "Konami Justifier",   // ID 0x3
-     "Digital controller", // ID 0x4
-     "Analog stick",       // ID 0x5
-     "Guncon",             // ID 0x6
-     "Analog controller",  // ID 0x7
-     "Multitap",           // ID 0x8
-     "Keyboard",           // ID 0x9
-     "Unknown",            // ID 0xa
-     "Unknown",            // ID 0xb
-     "Unknown",            // ID 0xc
-     "Unknown",            // ID 0xd
-     "Jogcon",             // ID 0xe
-     "Configuration mode"  // ID 0xf
- };
- 
- static const char *const buttonNames[] = {
-     "Select",   // Bit 0
-     "L3",       // Bit 1
-     "R3",       // Bit 2
-     "Start",    // Bit 3
-     "Up",       // Bit 4
-     "Right",    // Bit 5
-     "Down",     // Bit 6
-     "Left",     // Bit 7
-     "L2",       // Bit 8
-     "R2",       // Bit 9
-     "L1",       // Bit 10
-     "R1",       // Bit 11
-     "Triangle", // Bit 12
-     "Circle",   // Bit 13
-     "X",        // Bit 14
-     "Square"    // Bit 15
- };
- 
  uint16_t getButtonPress(int port) {
      // Build the request packet.
-     uint8_t request[4], response[8];
+     uint8_t request[4], response[32];
 
  
      request[0] = CMD_POLL; // Command
@@ -225,40 +184,17 @@ bool waitForAcknowledge(int timeout) {
          ADDR_CONTROLLER, request, response, sizeof(request), sizeof(response)
      );
  
-    // ptr += sprintf(ptr, "Port %d:\n", port + 1);
- 
-     if (respLength < 4) {
+     if (respLength < 4 || response[1] != 0x5A) {
          // All controllers reply with at least 4 bytes of data.
     //     ptr += sprintf(ptr, "  No controller connected");
          return 0x00;
      }
- 
-     // The first byte of the response contains the device type ID in the upper
-     // nibble, as well as the length of the packet's payload in 2-byte units in
-     // the lower nibble.
-    /*  ptr += sprintf(
-         ptr,
-         "  Controller type:\t%s\n"
-         "  Buttons pressed:\t",
-         controllerTypes[response[0] >> 4]
-     );
-     */
+     
      // Bytes 2 and 3 hold a bitfield representing the state all buttons. As each
      // bit is active low (i.e. a zero represents a button being pressed), the
      // entire field must be inverted.
      uint16_t buttons = (response[2] | (response[3] << 8)) ^ 0xffff;
      return buttons;
-     /*
-     for (int i = 0; i < 16; i++) {
-         if ((buttons >> i) & 1)
-             ptr += sprintf(ptr, "%s ", buttonNames[i]);
-     }
-    */
-    // ptr += sprintf(ptr, "\n  Response data:\t");
- 
-    // for (int i = 0; i < respLength; i++)
-    //     ptr += sprintf(ptr, "%02X ", response[i]);
-
  }
 
 

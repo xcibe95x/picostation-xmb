@@ -46,16 +46,25 @@
 #include "gpu.h"
 #include "controller.h"
 #include "psxproject/system.h"
+#include "psxproject/spu.h"
 #include <stdlib.h>
 #include "file_manager.h"
-#include "modplayer.h"
 #include "counters.h"
+#include "logging.h"
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #define LISTING_SIZE 2324
 #define MAX_FILES 4096
+
+#if DEBUG_MAIN
+#define DEBUG_PRINT(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(...) while (0)
+#endif
+
+#define SFX_VOL	10922 // 2/3 of maximal volume
 
 // In order to pick sprites (characters) out of our spritesheet, we need a table
 // listing all of them (in ASCII order in this case) with their UV coordinates
@@ -301,9 +310,7 @@ static void printString(
 #define TEXTURE_COLOR_DEPTH GP0_COLOR_4BPP
 
 extern const uint8_t fontTexture[], fontPalette[], logoTexture[], logoPalette[];
-extern const uint8_t timewarped_hit[];
-static uint16_t s_nextCounter = 0;
-
+extern const uint8_t click_sfx[], slide_sfx[];
 
 #define c_maxFilePathLength 255
 #define c_maxFilePathLengthWithTerminator c_maxFilePathLength + 1
@@ -365,43 +372,42 @@ uint32_t list_load(void *sectorBuffer, uint8_t command, uint16_t argument)
 	return fileEntryCount;
 }
 
-static void checkMusic() {
-    if (((int16_t)(s_nextCounter - COUNTERS[1].value)) <= 0) {
-        MOD_Poll();
-        s_nextCounter += MOD_hblanks;
-    }
-}
-
 int main(int argc, const char **argv)
 {
 	COUNTERS[1].mode = 0x0100;
-    MOD_Load((struct MODFileFormat*)timewarped_hit);
-	s_nextCounter = COUNTERS[1].value + MOD_hblanks;
 
 	initIRQ();
+#if DEBUG_LOGGING_ENABLED
 	initSerialIO(115200);
+#endif
 	initControllerBus();
-	// initFilesystem();
 	initCDROM();
-
+	initSPU();
+	
+	static Sound sfx_click;
+	static Sound sfx_slide;
+	
+	sound_loadSoundFromBinary(click_sfx, &sfx_click);
+	sound_loadSoundFromBinary(slide_sfx, &sfx_slide);
+	
 	file_manager_init();
 
 	uint8_t currentCommand = MENU_COMMAND_GOTO_ROOT;
 
-	printf("Hello from menu loader!\n");
+	DEBUG_PRINT("Hello from menu loader!\n");
 
 	if ((GPU_GP1 & GP1_STAT_FB_MODE_BITMASK) == GP1_STAT_FB_MODE_PAL)
 	{
-		puts("Using PAL mode");
+		DEBUG_PRINT("Using PAL mode\n");
 		setupGPU(GP1_MODE_PAL, SCREEN_WIDTH, SCREEN_HEIGHT);
 	}
 	else
 	{
-		puts("Using NTSC mode");
+		DEBUG_PRINT("Using NTSC mode\n");
 		setupGPU(GP1_MODE_NTSC, SCREEN_WIDTH, SCREEN_HEIGHT);
 	}
 
-	DMA_DPCR |= DMA_DPCR_ENABLE << (DMA_GPU * 4);
+	DMA_DPCR |= DMA_DPCR_CH_ENABLE(DMA_GPU);
 
 	GPU_GP1 = gp1_dmaRequestMode(GP1_DREQ_GP0_WRITE);
 	GPU_GP1 = gp1_dispBlank(false);
@@ -423,22 +429,13 @@ int main(int argc, const char **argv)
 	DMAChain dmaChains[2];
 	bool usingSecondFrame = false;
 
-	// dummy list
-	// char text[2048] = "Game\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\nGame\n";
-
 	char sectorBuffer[2324];
-
-	// file_load("SYSTEM.CNF;1", txtBuffer2);
-
-	// printf("format s %s\n", txtBuffer2);
-	///
-
+	
+	static uint8_t highlight = 0;
+	
 	uint32_t fileEntryCount = 0;
 
-	// printf("disk buffer %s\n", txtBuffer);
 	uint16_t selectedindex = 0;
-
-	// uint16_t sectorBuffer[1024];
 
 	int creditsmenu = 0;
 
@@ -478,13 +475,8 @@ int main(int argc, const char **argv)
 			ptr[3] = gp0_uv(logo.u, logo.v, logo.clut);
 			ptr[4] = gp0_xy(logo.width, logo.height);
 		//}
-
-
-		char controllerbuffer[256];
+		
 		// get the controller button press
-
-		snprintf(controllerbuffer, sizeof(controllerbuffer), "%i", getButtonPress(0));
-		// printString(chain, &font, 56,100, controllerbuffer);
 		uint16_t buttons = getButtonPress(0);
 		uint16_t pressedButtons = ~previousButtons & buttons;
 
@@ -513,6 +505,11 @@ int main(int argc, const char **argv)
 			{
 				selectedindex = selectedindex < (int)(fileEntryCount - (pageSize + 1)) ? selectedindex + pageSize : fileEntryCount - 1;
 			}
+			
+			if (pressedButtons & (BUTTON_MASK_UP | BUTTON_MASK_DOWN | BUTTON_MASK_LEFT | BUTTON_MASK_RIGHT))
+			{
+				sound_playOnChannel(&sfx_click, SFX_VOL, SFX_VOL, 0);
+			}
 
 			if (pressedButtons & BUTTON_MASK_START)
 			{
@@ -539,6 +536,11 @@ int main(int argc, const char **argv)
 			if (pressedButtons & BUTTON_MASK_SQUARE)
 			{
 				currentCommand = MENU_COMMAND_GOTO_PARENT;
+			}
+			
+			if (pressedButtons & (BUTTON_MASK_SQUARE | BUTTON_MASK_X | BUTTON_MASK_START))
+			{
+				sound_playOnChannel(&sfx_slide, SFX_VOL, SFX_VOL, 1);
 			}
 
 			if (pressedButtons & BUTTON_MASK_TRIANGLE)
@@ -571,9 +573,10 @@ int main(int argc, const char **argv)
 
 						if (index == selectedindex)
 						{
+							uint8_t color = highlight + 48;
 							ptr = allocatePacket(chain, 3);
-							ptr[0] = gp0_rgb(48, 48, 48) | gp0_rectangle(false, false, false);
-							ptr[1] = gp0_xy(0, 33 + (i * 11));
+							ptr[0] = gp0_rgb(color, color, color) | gp0_rectangle(false, false, false);
+							ptr[1] = gp0_xy(0, 32 + (i * 11));
 							ptr[2] = gp0_xy(320, 12);
 						}
 
@@ -590,30 +593,24 @@ int main(int argc, const char **argv)
 				}
 
 				printString(chain, &font, 12, 212, "\x91 Select / Fast Boot, \x96 Regular Boot, \x90 Parent Folder");
+				
+				highlight = (highlight + 1) & 0x3F;
 			}
 		}
 		else
 		{
 			printString(
 				chain, &font, 40, 40,
-				"PicosSation Plus Menu Alpha Release");
+				"PicosSation Menu Alpha Release");
 			printString(
 				chain, &font, 40, 80,
 				"Huge thanks to Rama, Skitchin, Raijin, SpicyJpeg,\nDanhans42, NicholasNoble and ChatGPT");
 
 			printString(
 				chain, &font, 40, 120,
-				"https://github.com/team-Resurgent/picostation-menu");
+				"https://github.com/megavolt85/picostation-menu");
 		}
 
-		//	char printBuffer[1024];
-
-		// 	sprintf(printBuffer, "%i", modelLba);
-		//	printf("LBA: %i \n", modelLba);
-
-		//	printString(chain, &font, 56,100, printBuffer);
-
-		checkMusic();
 
 		previousButtons = buttons;
 		*(chain->nextPacket) = gp0_endTag(0);
@@ -644,11 +641,13 @@ int main(int argc, const char **argv)
 			}
 			else if ((currentCommand == MENU_COMMAND_MOUNT_FILE_FAST) || (currentCommand == MENU_COMMAND_MOUNT_FILE_SLOW))
 			{
-				printf("DEBUG: selectedindex :%d\n", selectedindex);
+				DEBUG_PRINT("DEBUG: selectedindex :%d\n", selectedindex);
 
 				uint16_t index = file_manager_get_file_index(selectedindex);
 				sendCommand(COMMAND_MOUNT_FILE, index);
-
+				delayMicroseconds(40000);
+				updateCDROM_TOC();
+				
 				initFilesystem();
 
 				char gameId[2048];
@@ -657,7 +656,7 @@ int main(int argc, const char **argv)
 				char configBuffer[2048];
 				if (file_load("SYSTEM.CNF;1", configBuffer) == 0)
 				{
-					printf("SYSTEM.CNF contents = '\n%s'\n", configBuffer);
+					DEBUG_PRINT("SYSTEM.CNF contents = '\n%s'\n", configBuffer);
 
 					int i = 0;
 					int j = 0;
@@ -676,14 +675,14 @@ int main(int argc, const char **argv)
 						gameId = tempBuffer + 5;
 					}
 
-					printf("Game id: %s\n", gameId);
+					DEBUG_PRINT("Game id: %s\n", gameId);
 
-					printf("Sending game id to memcard\n");
+					DEBUG_PRINT("Sending game id to memcard\n");
 					sendGameID(gameId);
 
-					printf("Sending game id to picostation\n");
-					sendCommand(COMMAND_IO_COMMAND, IO_COMMAND_GAMEID);
-					uint32_t len = strlen(gameId);
+					//DEBUG_PRINT("Sending game id to picostation\n");
+					//sendCommand(COMMAND_IO_COMMAND, IO_COMMAND_GAMEID);
+					/*uint32_t len = strlen(gameId);
 					size_t paddedLen = len + 1; 
 					for (uint32_t i = 0; i < paddedLen; i += 2)
 					{
@@ -698,7 +697,7 @@ int main(int argc, const char **argv)
 							pair |= (uint8_t)gameId[i + 1];
 						}
 						sendCommand(COMMAND_IO_DATA, pair);
-					}
+					}*/
 				}
 
 				delayMicroseconds(40000);

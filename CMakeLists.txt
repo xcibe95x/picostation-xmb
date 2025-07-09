@@ -53,7 +53,6 @@ add_executable(
     src/gpu.c
     src/main.c
     src/file_manager.c
-    src/modplayer.c
     src/controller.c
     src/psxproject/cdrom.c
     src/psxproject/delay.c
@@ -61,6 +60,7 @@ add_executable(
     src/psxproject/irq.c
     src/psxproject/system.c
     src/psxproject/stream.c
+    src/psxproject/spu.c
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE common)
 
@@ -85,11 +85,12 @@ endfunction()
 # may call it multiple times to embed other data into the binary.
 convertImage(assets/images/font.png 4 fontTexture.dat fontPalette.dat)
 convertImage(assets/images/picostationlogo.png 4 logoTexture.dat logoPalette.dat)
-addBinaryFile(${PROJECT_NAME} timewarped_hit "${PROJECT_SOURCE_DIR}/timewarped.hit")
 addBinaryFile(${PROJECT_NAME} fontTexture "${PROJECT_BINARY_DIR}/fontTexture.dat")
 addBinaryFile(${PROJECT_NAME} fontPalette "${PROJECT_BINARY_DIR}/fontPalette.dat")
 addBinaryFile(${PROJECT_NAME} logoTexture "${PROJECT_BINARY_DIR}/logoTexture.dat")
 addBinaryFile(${PROJECT_NAME} logoPalette "${PROJECT_BINARY_DIR}/logoPalette.dat")
+addBinaryFile(${PROJECT_NAME} click_sfx "${PROJECT_SOURCE_DIR}/assets/click.vag")
+addBinaryFile(${PROJECT_NAME} slide_sfx "${PROJECT_SOURCE_DIR}/assets/slide.vag")
 
 # Add a step to run convertExecutable.py after the executable is compiled in
 # order to convert it into a PS1 executable. By default all custom commands run
@@ -106,9 +107,42 @@ add_custom_command(
     VERBATIM
 )
 
+# ==============================================================================
+# Image Generation Post-Build Step
+# Generates .psexe image from compiled binary using platform-specific scripts
+# ==============================================================================
+
+# Define script based on platform - fail fast with clear error message
+if(WIN32)
+    set(IMAGE_SCRIPT "${PROJECT_SOURCE_DIR}/make-xiso.bat")
+    set(PLATFORM_NAME "Windows")
+else()
+    set(IMAGE_SCRIPT "${PROJECT_SOURCE_DIR}/makeimage.sh")
+    set(PLATFORM_NAME "Unix/Linux")
+endif()
+
+# Validate script exists before proceeding
+if(NOT EXISTS "${IMAGE_SCRIPT}")
+    message(FATAL_ERROR 
+        "Image generation script not found for ${PLATFORM_NAME}: ${IMAGE_SCRIPT}\n"
+        "Please ensure the appropriate script exists in the project root."
+    )
+endif()
+
+# Generate image post-build
 add_custom_command(
     TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND "${PROJECT_SOURCE_DIR}/make-xiso.bat"
+    COMMAND 
+		"${IMAGE_SCRIPT}"
+        "$<TARGET_FILE:${PROJECT_NAME}>"
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
     VERBATIM
+)
+
+# Optional: Add dependency tracking for the script itself
+# This ensures rebuild if the script changes
+set_property(
+    TARGET ${PROJECT_NAME}
+    APPEND PROPERTY ADDITIONAL_CLEAN_FILES 
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.psexe"
 )

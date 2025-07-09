@@ -55,7 +55,6 @@ uint8_t CDWaitIntWithTimeout( unsigned int timeout ) {
     pCDREG0 = 1;
     while( ( pCDREG3 & 0x07 ) == 0 ) {
         if( timeout && ( timer++ > timeout ) ) {
-            if (timeout > 1999) printf(" toAck(%d)\n", timeout);
             return 0;
         }
     }

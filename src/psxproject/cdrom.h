@@ -40,6 +40,8 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
 
 bool readDiscName(char *output);
 
+void updateCDROM_TOC(void);
+
 void cdromINT1(void);
 void cdromINT2(void);
 void cdromINT3(void);

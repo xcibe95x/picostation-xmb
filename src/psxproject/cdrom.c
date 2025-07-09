@@ -11,6 +11,13 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 #include "delay.h"
+#include "../logging.h"
+
+#if DEBUG_CDROM
+#define DEBUG_PRINT(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(...) while (0)
+#endif
 
 volatile bool waitingForInt1;
 volatile bool waitingForInt2;
@@ -36,7 +43,7 @@ uint8_t cdromLastReadPurpose;
 
 void initCDROM(void) {
     BIU_DEV5_CTRL = 0x00020943; // Configure bus
-    DMA_DPCR |= DMA_DPCR_ENABLE << (DMA_CDROM * 4); // Enable DMA
+    DMA_DPCR |= DMA_DPCR_CH_ENABLE(DMA_CDROM); // Enable DMA
 
     CDROM_ADDRESS = 1;
     CDROM_HCLRCTL = 0 // Acknowledge all IRQs
@@ -133,41 +140,6 @@ void waitForINT5(){
 /// @param sectorSize Size of sector (2048)
 /// @param doubleSpeed Read at double speed
 /// @param wait Block until read completed
-/*void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSize, bool doubleSpeed, bool wait) {
-    cdromReadDataPtr        = ptr;
-    cdromReadDataNumSectors = numSectors;
-    cdromReadDataSectorSize = sectorSize;
-
-    uint8_t mode = 0;
-    CDROMMSF     msf;
-
-    if (sectorSize == 2340)
-        mode |= CDROM_MODE_SIZE_2340 ;
-    if (doubleSpeed)
-        mode |= CDROM_MODE_SPEED_2X;
-
-
-    cdrom_convertLBAToMSF(&msf, lba);
-
-    printf("LBA Set: %d (%02x:%02x:%02x), issue setmode\n", lba, msf.minute, msf.second, msf.frame);
-    
-    issueCDROMCommand(CDROM_CMD_SETMODE, &mode, sizeof(mode));
-    waitForINT3();
-    printf("Issue SETLOC\n");
-    issueCDROMCommand(CDROM_CMD_SETLOC , (const uint8_t *)&msf, sizeof(msf));
-    waitForINT3();
-    printf("Issue CDREAD\n");
-    issueCDROMCommand(CDROM_CMD_READ_S  , NULL, 0);
-    waitForINT3();
-    if(wait){
-        while(cdromReadDataNumSectors > 0){
-            // Do nothing
-            __asm__ volatile("");
-        }
-        waitForINT2();
-    }
-    printf("Finish read\n");
-}*/
 
 void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSize, bool doubleSpeed, bool wait)
 {
@@ -186,17 +158,17 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
     cdrom_convertLBAToMSF(&msf, lba);
     delayMicroseconds(100);
 
-    //printf("LBA Set: %d (%02x:%02x:%02x), issue setmode\n", lba, msf.minute, msf.second, msf.frame);
+    //DEBUG_PRINT("LBA Set: %d (%02x:%02x:%02x), issue setmode\n", lba, msf.minute, msf.second, msf.frame);
     issueCDROMCommand(CDROM_CMD_SETMODE, &mode, sizeof(mode));
     waitForINT3();
-    //printf("Issue SETLOC\n");
+    //DEBUG_PRINT("Issue SETLOC\n");
     issueCDROMCommand(CDROM_CMD_SETLOC, (const uint8_t *)&msf, sizeof(msf));
     waitForINT3();
-    //printf("Issue CDREAD\n");
+    //DEBUG_PRINT("Issue CDREAD\n");
     issueCDROMCommand(CDROM_CMD_READ_N, NULL, 0);
     waitForINT3();
 
-    if ( !waitingForInt1 ) printf(" what's going on!?\n");
+    if ( !waitingForInt1 ) DEBUG_PRINT(" what's going on!?\n");
 
     if (wait)
     {
@@ -206,7 +178,17 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
             delayMicroseconds(100);
         }
     }
-    //printf("Finish read\n");
+    //DEBUG_PRINT("Finish read\n");
+}
+
+void updateCDROM_TOC(void) {
+	
+	uint8_t session = 1;
+	
+	issueCDROMCommand(CDROM_CMD_SETSESSION, &session, sizeof(session));
+	
+	waitForINT3();
+	waitForINT2();
 }
 
 // Data is ready to be read from the CDROM via DMA.
@@ -264,24 +246,17 @@ size_t file_load(const char *name, void *sectorBuffer){
 	
 	
 	modelLba = getLbaToFile(name);
-	if(!modelLba){
-		printf("File not found\n");
+	if(!modelLba) {
+		DEBUG_PRINT("File not found\n");
 
 		return 1;
-	} else {
-	printf("found file\n");
-	printf("LBA: %d\n", modelLba);
+	} 
+	else {
+		DEBUG_PRINT("found file\n");
+		DEBUG_PRINT("LBA: %d\n", modelLba);
 	}
 
-	startCDROMRead(
-		modelLba,
-		sectorBuffer,
-		1,
-		2048,
-		true,
-		true
-	);
-
+	startCDROMRead( modelLba, sectorBuffer, 1, 2048, true, true );
 
 	return 0;
 }

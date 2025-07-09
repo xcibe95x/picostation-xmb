@@ -5,7 +5,15 @@
 #include "spu.h"
 #include "ps1/registers.h"
 #include "system.h"
-#include "cdrom.c"
+#include "cdrom.h"
+#include "delay.h"
+#include "../logging.h"
+
+#if DEBUG_SPU
+#define DEBUG_PRINT(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(...) while (0)
+#endif
 
 /* Basic API */
 
@@ -74,7 +82,7 @@ void initSPU(void){
     stopChannel(ALL_CHANNELS);
 
     // Enable the SPU's DMA channel
-    DMA_DPCR |= DMA_DPCR_ENABLE << (DMA_SPU * 4);
+    DMA_DPCR |= DMA_DPCR_CH_ENABLE(DMA_SPU);
 
     setMasterVolume(MAX_VOLUME, 0);
 }
@@ -242,10 +250,10 @@ Channel sound_playOnChannel(Sound *sound, uint16_t left, uint16_t right, Channel
         return -1;
     }
     if(!sound->offset){
-        printf("Length:     %d\n", sound->length);
-        printf("Offset:     %d\n", sound->offset);
-        printf("SampleRate: %d\n", sound->sampleRate);
-        printf("INVALID SOUND OFFSET: %d\n", sound->offset);
+        DEBUG_PRINT("Length:     %d\n", sound->length);
+        DEBUG_PRINT("Offset:     %d\n", sound->offset);
+        DEBUG_PRINT("SampleRate: %d\n", sound->sampleRate);
+        DEBUG_PRINT("INVALID SOUND OFFSET: %d\n", sound->offset);
         return -2;
     }
 
@@ -281,13 +289,13 @@ int sound_loadSound(const char *name, Sound *sound){
     // Set the header data
     const VAGHeader *_vagHeader = (const VAGHeader*) _sectorBuffer;
     
-    printf("Sound: %s\n", name);
-    printf("%d\n",   _vagHeader->channels);
-    printf("%d\n",   _vagHeader->interleave);
-    printf("%d\n",   _vagHeader->length);
-    printf("%d\n",   _vagHeader->magic);
-    printf("%d\n\n", _vagHeader->version);
-    printf("%d\n\n", _vagHeader->sampleRate);
+    DEBUG_PRINT("Sound: %s\n", name);
+    DEBUG_PRINT("%d\n",   _vagHeader->channels);
+    DEBUG_PRINT("%d\n",   _vagHeader->interleave);
+    DEBUG_PRINT("%d\n",   _vagHeader->length);
+    DEBUG_PRINT("%d\n",   _vagHeader->magic);
+    DEBUG_PRINT("%d\n\n", _vagHeader->version);
+    DEBUG_PRINT("%d\n\n", _vagHeader->sampleRate);
 
     // Initialise the sound
     sound_create(sound);
@@ -336,16 +344,16 @@ int sound_loadSound(const char *name, Sound *sound){
 
 
 int sound_loadSoundFromBinary(const uint8_t *data, Sound *sound){
-    int remainingLength;
     
-    VAGHeader *_vagHeader = (const VAGHeader*) data;
+    VAGHeader *_vagHeader = (VAGHeader*) data;
+    int uploadedData;
     
-    printf("%d\n",   _vagHeader->channels);
-    printf("%d\n",   _vagHeader->interleave);
-    printf("%d\n",   _vagHeader->length);
-    printf("%d\n",   _vagHeader->magic);
-    printf("%d\n\n", _vagHeader->version);
-    printf("%d\n\n", _vagHeader->sampleRate);
+    DEBUG_PRINT("%d\n",   _vagHeader->channels);
+    DEBUG_PRINT("%d\n",   _vagHeader->interleave);
+    DEBUG_PRINT("%d\n",   _vagHeader->length);
+    DEBUG_PRINT("%d\n",   _vagHeader->magic);
+    DEBUG_PRINT("%d\n\n", _vagHeader->version);
+    DEBUG_PRINT("%d\n\n", _vagHeader->sampleRate);
 
     _vagHeader->sampleRate = (_vagHeader->sampleRate * 2) / 3;
 
@@ -356,12 +364,10 @@ int sound_loadSoundFromBinary(const uint8_t *data, Sound *sound){
         return 2;
     }
 
-    upload(
-        spuAllocPtr,
-        vagHeader_getData(_vagHeader),
-        sound->length,
-        true
-    );
+    uploadedData = upload( spuAllocPtr, vagHeader_getData(_vagHeader), sound->length, true );
+    
+    spuAllocPtr += uploadedData;
     
     return 0;
 }
+

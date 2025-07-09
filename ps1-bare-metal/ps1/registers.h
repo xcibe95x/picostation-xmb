@@ -207,13 +207,6 @@ typedef enum {
 	DMA_DICR_IRQ               =    1 << 31
 } DMADICRFlag;
 
-typedef enum {
-	DMA_DPCR_PRIORITY_BITMASK = 7 << 0,
-	DMA_DPCR_PRIORITY_MIN     = 7 << 0,
-	DMA_DPCR_PRIORITY_MAX     = 0 << 0,
-	DMA_DPCR_ENABLE           = 1 << 3
-} DMADPCRFlag;
-
 #define DMA_DICR_CH_MODE(N)   (1 << ((N) +  0))
 #define DMA_DICR_CH_ENABLE(N) (1 << ((N) + 16))
 #define DMA_DICR_CH_STAT(N)   (1 << ((N) + 24))
@@ -385,7 +378,7 @@ typedef enum {
 	MDEC_CMD_FORMAT_8BPP        =      1 << 27, // MDEC_CMD_OP_DECODE
 	MDEC_CMD_FORMAT_24BPP       =      2 << 27, // MDEC_CMD_OP_DECODE
 	MDEC_CMD_FORMAT_16BPP       =      3 << 27, // MDEC_CMD_OP_DECODE
-	MDEC_CMD_OP_BITMASK         =      7 << 31,
+	MDEC_CMD_OP_BITMASK         =      7 << 29,
 	MDEC_CMD_OP_NOP             =      0 << 29,
 	MDEC_CMD_OP_DECODE          =      1 << 29,
 	MDEC_CMD_OP_SET_QUANT_TABLE =      2 << 29,

@@ -2,7 +2,15 @@
 #include "stdbool.h"
 #include "cdrom.h"
 #include "stdio.h"
+#include "../logging.h"
 //#include "string.h"
+
+#if DEBUG_FS
+#define DEBUG_PRINT(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(...) while (0)
+#endif
+
 // Internal global variable for this lib. Hides away the rootDirData for internal use.
 uint8_t rootDirData[2048];
 
@@ -96,7 +104,7 @@ uint32_t getLbaToFile(const char *filename){
            break;
         }
         offset += recLen;
-        printf(" Read file name: %s\t| %s\n", directoryEntry.name, __builtin_strcmp(directoryEntry.name, filename) ? "False" : "True");
+        DEBUG_PRINT(" Read file name: %s\t| %s\n", directoryEntry.name, __builtin_strcmp(directoryEntry.name, filename) ? "False" : "True");
 
         if(!__builtin_strcmp(directoryEntry.name, filename)){
             return directoryEntry.lba;
@@ -118,7 +126,7 @@ bool getFileInfo(const char *filename, DirectoryEntry *output){
            break;
 
         offset += recLen;
-        printf(" Read file name: %s\t| %s\n", output->name, __builtin_strcmp(output->name, filename) ? "False" : "True");
+        DEBUG_PRINT(" Read file name: %s\t| %s\n", output->name, __builtin_strcmp(output->name, filename) ? "False" : "True");
 
         if(!__builtin_strcmp(output->name, filename))
             return true;
