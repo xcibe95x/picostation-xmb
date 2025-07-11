@@ -479,6 +479,25 @@ int main(int argc, const char **argv)
 		// get the controller button press
 		uint16_t buttons = getButtonPress(0);
 		uint16_t pressedButtons = ~previousButtons & buttons;
+		static uint8_t hold = 0;
+		
+		if ((buttons & BUTTON_MASK_UP) && (previousButtons & BUTTON_MASK_UP))
+		{
+			if (++hold > 30) {
+				pressedButtons ^= BUTTON_MASK_UP;
+				hold = 20;
+			}
+		}
+		else if ((buttons & BUTTON_MASK_DOWN) && (previousButtons & BUTTON_MASK_DOWN))
+		{
+			if (++hold > 30) {
+				pressedButtons ^= BUTTON_MASK_DOWN;
+				hold = 20;
+			}
+		}
+		else {
+			hold = 0;
+		}
 
 		const uint16_t pageSize = 16;
 
@@ -491,11 +510,11 @@ int main(int argc, const char **argv)
 		{
 			if (pressedButtons & BUTTON_MASK_UP)
 			{
-				selectedindex = selectedindex > 0 ? selectedindex - 1 : selectedindex;
+				selectedindex = selectedindex > 0 ? selectedindex - 1 : fileEntryCount - 1;
 			}
 			if (pressedButtons & BUTTON_MASK_DOWN)
 			{
-				selectedindex = selectedindex < (int)(fileEntryCount - 1) ? selectedindex + 1 : selectedindex;
+				selectedindex = selectedindex < (int)(fileEntryCount - 1) ? selectedindex + 1 : 0;
 			}
 			if (pressedButtons & BUTTON_MASK_LEFT)
 			{
