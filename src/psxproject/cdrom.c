@@ -74,7 +74,7 @@ void issueCDROMCommand(uint8_t cmd, const uint8_t *arg, size_t argLength) {
     waitingForInt3 = true;
     waitingForInt4 = true;
     waitingForInt5 = true;
-
+	cdromStatus = 0;
     cdromDataReady = false;
 
     while (CDROM_BUSY)
@@ -115,7 +115,7 @@ void waitForINT1(){
 }
 
 void waitForINT2(){
-    while(waitingForInt2){
+    while(waitingForInt2 && waitingForInt5){
         __asm__ volatile("");
     }
 }
@@ -147,7 +147,7 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
     cdromReadDataNumSectors = numSectors;
     cdromReadDataSectorSize = sectorSize;
 
-    uint8_t mode = 0;
+    uint8_t mode = CDROM_MODE_CDDA;
     CDROMMSF     msf;
 
     if (sectorSize == 2340)
@@ -189,6 +189,33 @@ void updateCDROM_TOC(void) {
 	
 	waitForINT3();
 	waitForINT2();
+}
+
+int is_playstation_cd(void) {
+	
+	issueCDROMCommand(CDROM_CMD_GET_ID, NULL, 0);
+	waitForINT3();
+	
+	if (!waitingForInt5)
+	{
+		return 0;
+	}
+	
+	waitForINT2();
+	
+	if (!waitingForInt5)
+	{
+		return 0;
+	}
+	
+	CDROMGetIDResult *res = (CDROMGetIDResult *) cdromResponse;
+	
+	if (res->type != 0x20)
+	{
+		return 0;
+	}
+	
+	return 1;
 }
 
 // Data is ready to be read from the CDROM via DMA.

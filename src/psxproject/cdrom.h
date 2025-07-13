@@ -27,7 +27,6 @@ extern uint8_t cdromLastReadPurpose;
 
 #define CDROM_BUSY (CDROM_HSTS & CDROM_HSTS_BUSYSTS)
 
-
 void initCDROM(void);
 
 void issueCDROMCommand(uint8_t cmd, const uint8_t *arg, size_t argLength);
@@ -41,6 +40,7 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
 bool readDiscName(char *output);
 
 void updateCDROM_TOC(void);
+int is_playstation_cd(void);
 
 void cdromINT1(void);
 void cdromINT2(void);

@@ -485,14 +485,14 @@ int main(int argc, const char **argv)
 		{
 			if (++hold > 30) {
 				pressedButtons ^= BUTTON_MASK_UP;
-				hold = 20;
+				hold = 25;
 			}
 		}
 		else if ((buttons & BUTTON_MASK_DOWN) && (previousButtons & BUTTON_MASK_DOWN))
 		{
 			if (++hold > 30) {
 				pressedButtons ^= BUTTON_MASK_DOWN;
-				hold = 20;
+				hold = 25;
 			}
 		}
 		else {
@@ -512,20 +512,22 @@ int main(int argc, const char **argv)
 			{
 				selectedindex = selectedindex > 0 ? selectedindex - 1 : fileEntryCount - 1;
 			}
-			if (pressedButtons & BUTTON_MASK_DOWN)
+			else if (pressedButtons & BUTTON_MASK_DOWN)
 			{
 				selectedindex = selectedindex < (int)(fileEntryCount - 1) ? selectedindex + 1 : 0;
 			}
-			if (pressedButtons & BUTTON_MASK_LEFT)
+			
+			if (pressedButtons & (BUTTON_MASK_LEFT | BUTTON_MASK_L1))
 			{
 				selectedindex = selectedindex >= pageSize ? selectedindex - pageSize : 0;
 			}
-			if (pressedButtons & BUTTON_MASK_RIGHT)
+			else if (pressedButtons & (BUTTON_MASK_RIGHT | BUTTON_MASK_R1))
 			{
 				selectedindex = selectedindex < (int)(fileEntryCount - (pageSize + 1)) ? selectedindex + pageSize : fileEntryCount - 1;
 			}
 			
-			if (pressedButtons & (BUTTON_MASK_UP | BUTTON_MASK_DOWN | BUTTON_MASK_LEFT | BUTTON_MASK_RIGHT))
+			if (pressedButtons & (BUTTON_MASK_UP | BUTTON_MASK_DOWN | BUTTON_MASK_LEFT | BUTTON_MASK_RIGHT 
+																	| BUTTON_MASK_L1   | BUTTON_MASK_R1))
 			{
 				sound_playOnChannel(&sfx_click, SFX_VOL, SFX_VOL, 0);
 			}
@@ -667,56 +669,61 @@ int main(int argc, const char **argv)
 				delayMicroseconds(40000);
 				updateCDROM_TOC();
 				
-				initFilesystem();
-
-				char gameId[2048];
-				strcpy(gameId, "cdrom:\\PS.EXE;1");
-
-				char configBuffer[2048];
-				if (file_load("SYSTEM.CNF;1", configBuffer) == 0)
+				if (is_playstation_cd() && !initFilesystem())
 				{
-					DEBUG_PRINT("SYSTEM.CNF contents = '\n%s'\n", configBuffer);
+					char gameId[2048];
+					strcpy(gameId, "cdrom:\\PS.EXE;1");
 
-					int i = 0;
-					int j = 0;
-					char tempBuffer[500];
-					memset(tempBuffer, 0, 500);
-					while (configBuffer[i] != '\0' && configBuffer[i] != '\n' && i < 499) {
-						if (configBuffer[i] != ' ' && configBuffer[i] != '\t') { 
-							tempBuffer[j] = configBuffer[i]; 
-							j++;
-						}
-						i++; 
-					}
-
-					char* gameId = tempBuffer;
-					if (strncmp(tempBuffer, "BOOT=", 5) == 0) {
-						gameId = tempBuffer + 5;
-					}
-
-					DEBUG_PRINT("Game id: %s\n", gameId);
-
-					DEBUG_PRINT("Sending game id to memcard\n");
-					sendGameID(gameId);
-
-					//DEBUG_PRINT("Sending game id to picostation\n");
-					//sendCommand(COMMAND_IO_COMMAND, IO_COMMAND_GAMEID);
-					/*uint32_t len = strlen(gameId);
-					size_t paddedLen = len + 1; 
-					for (uint32_t i = 0; i < paddedLen; i += 2)
+					char configBuffer[2048];
+					if (file_load("SYSTEM.CNF;1", configBuffer) == 0)
 					{
-						delayMicroseconds(10000);
-						uint16_t pair = 0;
-						if (i < len)
-						{
-							pair |= (uint8_t)gameId[i] << 8;
+						DEBUG_PRINT("SYSTEM.CNF contents = '\n%s'\n", configBuffer);
+
+						int i = 0;
+						int j = 0;
+						char tempBuffer[500];
+						memset(tempBuffer, 0, 500);
+						while (configBuffer[i] != '\0' && configBuffer[i] != '\n' && i < 499) {
+							if (configBuffer[i] != ' ' && configBuffer[i] != '\t') { 
+								tempBuffer[j] = configBuffer[i]; 
+								j++;
+							}
+							i++; 
 						}
-						if (i + 1 < len)
-						{
-							pair |= (uint8_t)gameId[i + 1];
+
+						char* gameId = tempBuffer;
+						if (strncmp(tempBuffer, "BOOT=", 5) == 0) {
+							gameId = tempBuffer + 5;
 						}
-						sendCommand(COMMAND_IO_DATA, pair);
-					}*/
+
+						DEBUG_PRINT("Game id: %s\n", gameId);
+
+						DEBUG_PRINT("Sending game id to memcard\n");
+						sendGameID(gameId);
+
+						//DEBUG_PRINT("Sending game id to picostation\n");
+						//sendCommand(COMMAND_IO_COMMAND, IO_COMMAND_GAMEID);
+						/*uint32_t len = strlen(gameId);
+						size_t paddedLen = len + 1; 
+						for (uint32_t i = 0; i < paddedLen; i += 2)
+						{
+							delayMicroseconds(10000);
+							uint16_t pair = 0;
+							if (i < len)
+							{
+								pair |= (uint8_t)gameId[i] << 8;
+							}
+							if (i + 1 < len)
+							{
+								pair |= (uint8_t)gameId[i + 1];
+							}
+							sendCommand(COMMAND_IO_DATA, pair);
+						}*/
+					}
+				}
+				else
+				{
+					currentCommand = MENU_COMMAND_MOUNT_FILE_SLOW;
 				}
 
 				delayMicroseconds(40000);

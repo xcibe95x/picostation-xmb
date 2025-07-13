@@ -3,7 +3,7 @@
 #include "cdrom.h"
 #include "stdio.h"
 #include "../logging.h"
-//#include "string.h"
+#include "string.h"
 
 #if DEBUG_FS
 #define DEBUG_PRINT(...) printf(__VA_ARGS__)
@@ -15,8 +15,8 @@
 uint8_t rootDirData[2048];
 
 
-void initFilesystem(void){
-    getRootDirData(&rootDirData);
+int initFilesystem(void){
+	return getRootDirData(&rootDirData);
 }
 
 // Reads specifically the LBA that points to the root directory.
@@ -55,7 +55,7 @@ int parseDirRecord(uint8_t *dataSector, uint8_t *recordLength, DirectoryEntry *d
 
 
 // Gets the 2048 bytes that make up the root directory
-void getRootDirData(void *rootDirData){
+int getRootDirData(void *rootDirData){
    uint8_t buffer[2048];
    uint32_t rootDirLBA;
 
@@ -69,7 +69,10 @@ void getRootDirData(void *rootDirData){
       true
    );
 
-
+	if (strncmp((char *) &buffer[8], "PLAYSTATION", 11))
+	{
+		return -1;
+	}
    // Get the LBA for the root directory.
    getRootDirLba(buffer, &rootDirLBA);
 
@@ -82,7 +85,8 @@ void getRootDirData(void *rootDirData){
       true,
       true
    );
-
+   
+	return 0;
 }
 
 #include <stdio.h>
