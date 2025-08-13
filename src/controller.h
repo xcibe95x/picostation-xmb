@@ -54,7 +54,8 @@ typedef enum {
 
 void delayMicroseconds(int time);
 void sendPacketNoAcknowledge(DeviceAddress address, const uint8_t *request, int reqLength);
-void sendGameID(const char *str);
+void sendGameID(const char *str, uint8_t card);
+uint8_t checkMCPpresent(void);
 void initControllerBus(void);
 bool waitForAcknowledge(int timeout);
 void selectPort(int port);

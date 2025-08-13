@@ -374,6 +374,7 @@ uint32_t list_load(void *sectorBuffer, uint8_t command, uint16_t argument)
 
 int main(int argc, const char **argv)
 {
+	static uint8_t MCPpresent;
 	COUNTERS[1].mode = 0x0100;
 
 	initIRQ();
@@ -383,6 +384,8 @@ int main(int argc, const char **argv)
 	initControllerBus();
 	initCDROM();
 	initSPU();
+	
+	MCPpresent = checkMCPpresent();
 	
 	static Sound sfx_click;
 	static Sound sfx_slide;
@@ -666,67 +669,72 @@ int main(int argc, const char **argv)
 
 				uint16_t index = file_manager_get_file_index(selectedindex);
 				sendCommand(COMMAND_MOUNT_FILE, index);
-				delayMicroseconds(40000);
+				delayMicroseconds(400000);
 				updateCDROM_TOC();
+				delayMicroseconds(400000);
 				
-				if (is_playstation_cd() && !initFilesystem())
+				if (is_playstation_cd())
 				{
-					char gameId[2048];
-					strcpy(gameId, "cdrom:\\PS.EXE;1");
-
-					char configBuffer[2048];
-					if (file_load("SYSTEM.CNF;1", configBuffer) == 0)
+					if (MCPpresent && !initFilesystem())
 					{
-						DEBUG_PRINT("SYSTEM.CNF contents = '\n%s'\n", configBuffer);
+						char gameId[2048];
+						strcpy(gameId, "cdrom:\\PS.EXE;1");
 
-						int i = 0;
-						int j = 0;
-						char tempBuffer[500];
-						memset(tempBuffer, 0, 500);
-						while (configBuffer[i] != '\0' && configBuffer[i] != '\n' && i < 499) {
-							if (configBuffer[i] != ' ' && configBuffer[i] != '\t') { 
-								tempBuffer[j] = configBuffer[i]; 
-								j++;
-							}
-							i++; 
-						}
-
-						char* gameId = tempBuffer;
-						if (strncmp(tempBuffer, "BOOT=", 5) == 0) {
-							gameId = tempBuffer + 5;
-						}
-
-						DEBUG_PRINT("Game id: %s\n", gameId);
-
-						DEBUG_PRINT("Sending game id to memcard\n");
-						sendGameID(gameId);
-
-						//DEBUG_PRINT("Sending game id to picostation\n");
-						//sendCommand(COMMAND_IO_COMMAND, IO_COMMAND_GAMEID);
-						/*uint32_t len = strlen(gameId);
-						size_t paddedLen = len + 1; 
-						for (uint32_t i = 0; i < paddedLen; i += 2)
+						char configBuffer[2048];
+						if (file_load("SYSTEM.CNF;1", configBuffer) == 0)
 						{
-							delayMicroseconds(10000);
-							uint16_t pair = 0;
-							if (i < len)
+							DEBUG_PRINT("SYSTEM.CNF contents = '\n%s'\n", configBuffer);
+
+							int i = 0;
+							int j = 0;
+							char tempBuffer[500];
+							memset(tempBuffer, 0, 500);
+							while (configBuffer[i] != '\0' && configBuffer[i] != '\n' && i < 499) 
 							{
-								pair |= (uint8_t)gameId[i] << 8;
+								if (configBuffer[i] != ' ' && configBuffer[i] != '\t') 
+								{ 
+									tempBuffer[j] = configBuffer[i]; 
+									j++;
+								}
+								i++; 
 							}
-							if (i + 1 < len)
+
+							char* gameId = tempBuffer;
+							if (strncmp(tempBuffer, "BOOT=", 5) == 0)
 							{
-								pair |= (uint8_t)gameId[i + 1];
+								gameId = tempBuffer + 5;
 							}
-							sendCommand(COMMAND_IO_DATA, pair);
-						}*/
+
+							DEBUG_PRINT("Game id: %s\n", gameId);
+
+							DEBUG_PRINT("Sending game id to memcard\n");
+							sendGameID(gameId, MCPpresent);
+
+							//DEBUG_PRINT("Sending game id to picostation\n");
+							//sendCommand(COMMAND_IO_COMMAND, IO_COMMAND_GAMEID);
+							/*uint32_t len = strlen(gameId);
+							size_t paddedLen = len + 1; 
+							for (uint32_t i = 0; i < paddedLen; i += 2)
+							{
+								delayMicroseconds(10000);
+								uint16_t pair = 0;
+								if (i < len)
+								{
+									pair |= (uint8_t)gameId[i] << 8;
+								}
+								if (i + 1 < len)
+								{
+									pair |= (uint8_t)gameId[i + 1];
+								}
+								sendCommand(COMMAND_IO_DATA, pair);
+							}*/
+						}
 					}
 				}
 				else
 				{
 					currentCommand = MENU_COMMAND_MOUNT_FILE_SLOW;
 				}
-
-				delayMicroseconds(40000);
 
 				if (currentCommand == MENU_COMMAND_MOUNT_FILE_FAST) {
 					softFastReboot();

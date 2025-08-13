@@ -219,7 +219,27 @@ void sendPacketNoAcknowledge(
     SIO_CTRL(0) &= ~SIO_CTRL_DTR;
 }
 
-void sendGameID(const char *str) {
+uint8_t checkMCPpresent(void)
+{
+	uint8_t ret = 0;
+	uint8_t request[5] = {CMD_GAME_ID_PING, 0, 0, 0, 0 };
+	uint8_t response[5] = { 0, 0, 0, 0, 0 };
+	
+	for (int i = 0; i < 2; i++)
+	{
+		selectPort(i);
+		int respLength = exchangePacket(ADDR_MEMORY_CARD, request, response, sizeof(request), sizeof(response));
+		
+		if (respLength == 5 && response[3] == 0x27 && response[3] == 0xFF)
+		{
+			ret |= (1 << i);
+		}
+	}
+	
+	return ret;
+}
+
+void sendGameID(const char *str, uint8_t card) {
     uint8_t request[64];
     size_t  length = strlen(str) + 1;
 
@@ -229,8 +249,12 @@ void sendGameID(const char *str) {
     __builtin_strncpy((char *)&request[3], str, length);
 
     // Send the ID on both ports.
-    for (int i = 0; i < 2; i++) {
-        selectPort(i);
-        sendPacketNoAcknowledge(ADDR_MEMORY_CARD, request, length+3);
+    for (int i = 0; i < 2; i++)
+    {
+		if (card & (1 << i))
+		{
+			selectPort(i);
+			sendPacketNoAcknowledge(ADDR_MEMORY_CARD, request, length+3);
+        }
     }
 }
