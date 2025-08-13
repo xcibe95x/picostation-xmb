@@ -192,8 +192,16 @@ void updateCDROM_TOC(void) {
 }
 
 int is_playstation_cd(void) {
+	uint8_t tmpbuf[2048];
+	startCDROMRead(16, tmpbuf, 1, 2048, 1, 1);
 	
-	issueCDROMCommand(CDROM_CMD_GET_ID, NULL, 0);
+	if (!memcmp(&tmpbuf[8], "PLAYSTATION", 11))
+	{
+		return 1;
+	}
+	
+	return 0;
+	/*issueCDROMCommand(CDROM_CMD_GET_ID, NULL, 0);
 	waitForINT3();
 	
 	if (!waitingForInt5)
@@ -215,7 +223,7 @@ int is_playstation_cd(void) {
 		return 0;
 	}
 	
-	return 1;
+	return 1;*/
 }
 
 // Data is ready to be read from the CDROM via DMA.
