@@ -147,7 +147,7 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
     cdromReadDataNumSectors = numSectors;
     cdromReadDataSectorSize = sectorSize;
 
-    uint8_t mode = CDROM_MODE_CDDA;
+    uint8_t mode = 0;
     CDROMMSF     msf;
 
     if (sectorSize == 2340)
@@ -167,7 +167,12 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
     //DEBUG_PRINT("Issue CDREAD\n");
     issueCDROMCommand(CDROM_CMD_READ_N, NULL, 0);
     waitForINT3();
-
+	
+	if (!waitingForInt5)
+	{
+		return;
+	}
+	
     if ( !waitingForInt1 ) DEBUG_PRINT(" what's going on!?\n");
 
     if (wait)
@@ -176,6 +181,10 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
         {
             // busy wait
             delayMicroseconds(100);
+            if (!waitingForInt5)
+			{
+				return;
+			}
         }
     }
     //DEBUG_PRINT("Finish read\n");

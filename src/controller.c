@@ -230,7 +230,7 @@ uint8_t checkMCPpresent(void)
 		selectPort(i);
 		int respLength = exchangePacket(ADDR_MEMORY_CARD, request, response, sizeof(request), sizeof(response));
 		
-		if (respLength == 5 && response[3] == 0x27 && response[3] == 0xFF)
+		if (respLength == 5 && response[2] == 0x27 && response[3] == 0xFF)
 		{
 			ret |= (1 << i);
 		}
