@@ -398,6 +398,7 @@ int main(int argc, const char **argv)
 	uint8_t currentCommand = MENU_COMMAND_GOTO_ROOT;
 
 	DEBUG_PRINT("Hello from menu loader!\n");
+	DEBUG_PRINT("MC present %02X\n", MCPpresent);
 
 	if ((GPU_GP1 & GP1_STAT_FB_MODE_BITMASK) == GP1_STAT_FB_MODE_PAL)
 	{
@@ -668,19 +669,23 @@ int main(int argc, const char **argv)
 				DEBUG_PRINT("DEBUG: selectedindex :%d\n", selectedindex);
 
 				uint16_t index = file_manager_get_file_index(selectedindex);
+				DEBUG_PRINT("Mount image\n");
 				sendCommand(COMMAND_MOUNT_FILE, index);
 				delayMicroseconds(400000);
+				DEBUG_PRINT("Update TOC\n");
 				updateCDROM_TOC();
 				delayMicroseconds(400000);
-				
+				DEBUG_PRINT("Check CD type\n");
 				if (is_playstation_cd())
 				{
+					DEBUG_PRINT("is PS1 image\n");
 					if (MCPpresent && !initFilesystem())
 					{
 						char gameId[2048];
 						strcpy(gameId, "cdrom:\\PS.EXE;1");
 
 						char configBuffer[2048];
+						DEBUG_PRINT("load SYSTEM.CNF\n");
 						if (file_load("SYSTEM.CNF;1", configBuffer) == 0)
 						{
 							DEBUG_PRINT("SYSTEM.CNF contents = '\n%s'\n", configBuffer);
@@ -707,7 +712,7 @@ int main(int argc, const char **argv)
 
 							DEBUG_PRINT("Game id: %s\n", gameId);
 
-							DEBUG_PRINT("Sending game id to memcard\n");
+							DEBUG_PRINT("Sending game id to memcard (%02X)\n", MCPpresent);
 							sendGameID(gameId, MCPpresent);
 
 							//DEBUG_PRINT("Sending game id to picostation\n");
@@ -733,6 +738,7 @@ int main(int argc, const char **argv)
 				}
 				else
 				{
+					DEBUG_PRINT("is CDDA image\n");
 					currentCommand = MENU_COMMAND_MOUNT_FILE_SLOW;
 				}
 

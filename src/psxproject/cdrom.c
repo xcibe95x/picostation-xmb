@@ -147,7 +147,7 @@ void startCDROMRead(uint32_t lba, void *ptr, size_t numSectors, size_t sectorSiz
     cdromReadDataNumSectors = numSectors;
     cdromReadDataSectorSize = sectorSize;
 
-    uint8_t mode = 0;
+	uint8_t mode = 0;
     CDROMMSF     msf;
 
     if (sectorSize == 2340)

@@ -33,7 +33,8 @@
  * serial ports and their usage, although I tried to add as many comments as I
  * could to explain what is going on under the hood.
  */
-
+ 
+#include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -41,8 +42,15 @@
 #include "ps1/registers.h"
 #include "controller.h"
 #include "psxproject/system.h"
- 
- void initControllerBus(void) {
+#include "logging.h"
+
+#if DEBUG_CONTROLLER
+#define DEBUG_PRINT(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_PRINT(...) while (0)
+#endif
+
+void initControllerBus(void) {
      // Reset the serial interface, initialize it with the settings used by
      // controllers and memory cards (250000bps, 8 data bits) and configure it to
      // send a signal to the interrupt controller whenever the DSR input is
@@ -57,7 +65,7 @@
          | SIO_CTRL_TX_ENABLE
          | SIO_CTRL_RX_ENABLE
          | SIO_CTRL_DSR_IRQ_ENABLE;
- }
+}
  
 bool waitForAcknowledge(int timeout) {
      // Controllers and memory cards will acknowledge bytes received by sending
@@ -79,9 +87,7 @@ bool waitForAcknowledge(int timeout) {
      }
  
      return false;
- }
- 
-
+}
  
  #define DTR_DELAY       150
  #define DTR_PRE_DELAY   10
@@ -98,7 +104,7 @@ bool waitForAcknowledge(int timeout) {
          SIO_CTRL(0) |= SIO_CTRL_CS_PORT_2;
      else
          SIO_CTRL(0) &= ~SIO_CTRL_CS_PORT_2;
- }
+}
  
  uint8_t exchangeByte(uint8_t value) {
      // Wait until the interface is ready to accept a byte to send, then wait for
@@ -112,7 +118,7 @@ bool waitForAcknowledge(int timeout) {
          __asm__ volatile("");
  
      return SIO_DATA(0);
- }
+}
  
  int exchangePacket(
      DeviceAddress address, const uint8_t *request, uint8_t *response,
@@ -164,7 +170,7 @@ bool waitForAcknowledge(int timeout) {
      SIO_CTRL(0) &= ~SIO_CTRL_DTR;
      delayMicroseconds(DTR_POST_DELAY);
      return respLength;
- }
+}
  
  uint16_t getButtonPress(int port) {
      // Build the request packet.
@@ -195,7 +201,7 @@ bool waitForAcknowledge(int timeout) {
      // entire field must be inverted.
      uint16_t buttons = (response[2] | (response[3] << 8)) ^ 0xffff;
      return buttons;
- }
+}
 
 
 void sendPacketNoAcknowledge(
@@ -223,17 +229,31 @@ uint8_t checkMCPpresent(void)
 {
 	uint8_t ret = 0;
 	uint8_t request[5] = {CMD_GAME_ID_PING, 0, 0, 0, 0 };
-	uint8_t response[5] = { 0, 0, 0, 0, 0 };
+	uint8_t response  [5];
+	uint8_t requestID = CMD_CARD_IDENTIFY;
+	uint8_t responseID[9];
 	
 	for (int i = 0; i < 2; i++)
 	{
+		memset(response  , 0, 5);
+		memset(responseID, 0, 9);
 		selectPort(i);
-		int respLength = exchangePacket(ADDR_MEMORY_CARD, request, response, sizeof(request), sizeof(response));
+		int respLength = exchangePacket(ADDR_MEMORY_CARD, &requestID, responseID, 1, sizeof(responseID));
 		
-		if (respLength == 5 && response[2] == 0x27 && response[3] == 0xFF)
+		respLength = exchangePacket(ADDR_MEMORY_CARD, request, response, sizeof(request), sizeof(response));
+		
+		if (respLength == 5 && response[3] == 0x27 && response[4] == 0xFF)
 		{
 			ret |= (1 << i);
 		}
+#if DEBUG_CONTROLLER
+		DEBUG_PRINT("Port %d response: ", i);
+		for (int n = 0; n < 5; n++)
+		{
+			DEBUG_PRINT("%02X ", response[n]);
+		}
+		DEBUG_PRINT("\n");
+#endif
 	}
 	
 	return ret;
@@ -258,3 +278,4 @@ void sendGameID(const char *str, uint8_t card) {
         }
     }
 }
+
