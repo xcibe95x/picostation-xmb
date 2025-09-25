@@ -466,7 +466,7 @@ int main(int argc, const char **argv)
 		ptr[3] = gp0_fbOrigin(bufferX, bufferY);
 
 		ptr    = allocatePacket(chain, 3);
-		ptr[0] = gp0_rgb(64, 64, 64) | gp0_vramFill();
+		ptr[0] = gp0_rgb(209, 52, 52) | gp0_vramFill();
 		ptr[1] = gp0_xy(bufferX, bufferY);
 		ptr[2] = gp0_xy(SCREEN_WIDTH, SCREEN_HEIGHT);
 
