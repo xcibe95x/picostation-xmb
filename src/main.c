@@ -231,9 +231,184 @@ typedef enum
 #define FONT_TAB_WIDTH 32
 #define FONT_LINE_HEIGHT 10
 
+typedef struct
+{
+        int16_t x;
+        int16_t y;
+} BootVertex;
+
+static const int16_t bootSinTable[256] = {
+           0,   25,   50,   75,  100,  125,  150,  175,
+         200,  224,  249,  273,  297,  321,  345,  369,
+         392,  415,  438,  460,  483,  505,  526,  548,
+         569,  590,  610,  630,  650,  669,  688,  706,
+         724,  742,  759,  775,  792,  807,  822,  837,
+         851,  865,  878,  891,  903,  915,  926,  936,
+         946,  955,  964,  972,  980,  987,  993,  999,
+        1004, 1009, 1013, 1016, 1019, 1021, 1023, 1024,
+        1024, 1024, 1023, 1021, 1019, 1016, 1013, 1009,
+        1004,  999,  993,  987,  980,  972,  964,  955,
+         946,  936,  926,  915,  903,  891,  878,  865,
+         851,  837,  822,  807,  792,  775,  759,  742,
+         724,  706,  688,  669,  650,  630,  610,  590,
+         569,  548,  526,  505,  483,  460,  438,  415,
+         392,  369,  345,  321,  297,  273,  249,  224,
+         200,  175,  150,  125,  100,   75,   50,   25,
+           0,  -25,  -50,  -75, -100, -125, -150, -175,
+        -200, -224, -249, -273, -297, -321, -345, -369,
+        -392, -415, -438, -460, -483, -505, -526, -548,
+        -569, -590, -610, -630, -650, -669, -688, -706,
+        -724, -742, -759, -775, -792, -807, -822, -837,
+        -851, -865, -878, -891, -903, -915, -926, -936,
+        -946, -955, -964, -972, -980, -987, -993, -999,
+       -1004, -1009, -1013, -1016, -1019, -1021, -1023, -1024,
+       -1024, -1024, -1023, -1021, -1019, -1016, -1013, -1009,
+       -1004,  -999,  -993,  -987,  -980,  -972,  -964,  -955,
+        -946,  -936,  -926,  -915,  -903,  -891,  -878,  -865,
+        -851,  -837,  -822,  -807,  -792,  -775,  -759,  -742,
+        -724,  -706,  -688,  -669,  -650,  -630,  -610,  -590,
+        -569,  -548,  -526,  -505,  -483,  -460,  -438,  -415,
+        -392,  -369,  -345,  -321,  -297,  -273,  -249,  -224,
+        -200,  -175,  -150,  -125,  -100,   -75,   -50,   -25
+};
+
+static inline int16_t bootSin(uint8_t angle)
+{
+        return bootSinTable[angle];
+}
+
+static inline int16_t bootCos(uint8_t angle)
+{
+        return bootSinTable[(angle + 64) & 0xFF];
+}
+
+static uint8_t clampToByte(int32_t value)
+{
+        if (value < 0)
+        {
+                return 0;
+        }
+        if (value > 255)
+        {
+                return 255;
+        }
+        return (uint8_t)value;
+}
+
+static void drawSolidQuad(
+        DMAChain *chain, uint8_t r, uint8_t g, uint8_t b, BootVertex v0, BootVertex v1,
+        BootVertex v2, BootVertex v3)
+{
+        uint32_t *ptr = allocatePacket(chain, 5);
+        ptr[0] = gp0_rgb(r, g, b) | gp0_quad(false, false);
+        ptr[1] = gp0_xy(v0.x, v0.y);
+        ptr[2] = gp0_xy(v1.x, v1.y);
+        ptr[3] = gp0_xy(v2.x, v2.y);
+        ptr[4] = gp0_xy(v3.x, v3.y);
+}
+
+static void drawRotatedSquare(
+        DMAChain *chain, int centerX, int centerY, int radius, uint8_t angle,
+        uint8_t r, uint8_t g, uint8_t b)
+{
+        BootVertex vertices[4] = {
+                { -radius, -radius },
+                {  radius, -radius },
+                {  radius,  radius },
+                { -radius,  radius }
+        };
+
+        int16_t sinVal = bootSin(angle);
+        int16_t cosVal = bootCos(angle);
+
+        for (int i = 0; i < 4; ++i)
+        {
+                int32_t x = vertices[i].x;
+                int32_t y = vertices[i].y;
+
+                int32_t rotatedX = (x * cosVal - y * sinVal) >> 10;
+                int32_t rotatedY = (x * sinVal + y * cosVal) >> 10;
+
+                vertices[i].x = (int16_t)(centerX + rotatedX);
+                vertices[i].y = (int16_t)(centerY + rotatedY);
+        }
+
+        drawSolidQuad(chain, r, g, b, vertices[0], vertices[1], vertices[2], vertices[3]);
+}
+
+typedef struct
+{
+        int16_t baseRadius;
+        int16_t radiusAmplitude;
+        uint8_t angleSpeed;
+        uint8_t angleOffset;
+        uint8_t colorAmplitude;
+        uint8_t colorPhase;
+        uint8_t baseR;
+        uint8_t baseG;
+        uint8_t baseB;
+} BootLayer;
+
+static const BootLayer bootLayers[] = {
+        { 78,  0, 0, 32,  0,  0,  72,   8,   8 },
+        { 60,  0, 0,  0,  0,  0, 110,  12,  12 },
+        { 72,  6, 1, 16, 20, 64, 156,  20,  20 },
+        { 48, 10, 2, 64, 28, 96, 200,  32,  32 },
+        { 26,  8, 4,128, 36, 96, 240,  48,  48 }
+};
+
+static void drawRedBootBackground(
+        DMAChain *chain, int bufferX, int bufferY, uint32_t frame)
+{
+        const int centerX = bufferX + (SCREEN_WIDTH / 2);
+        const int centerY = bufferY + (SCREEN_HEIGHT / 2);
+
+        drawSolidQuad(
+                chain, 18, 0, 0,
+                (BootVertex){ bufferX, bufferY },
+                (BootVertex){ bufferX + SCREEN_WIDTH - 1, bufferY },
+                (BootVertex){ bufferX, bufferY + SCREEN_HEIGHT - 1 },
+                (BootVertex){ bufferX + SCREEN_WIDTH - 1, bufferY + SCREEN_HEIGHT - 1 }
+        );
+
+        for (int i = 0; i < (int)(sizeof(bootLayers) / sizeof(bootLayers[0])); ++i)
+        {
+                const BootLayer *layer = &bootLayers[i];
+                uint8_t angle = (uint8_t)(layer->angleOffset +
+                        (uint8_t)(frame * layer->angleSpeed));
+
+                int32_t radius = layer->baseRadius;
+                if (layer->radiusAmplitude)
+                {
+                        radius += (bootSin(angle) * layer->radiusAmplitude) >> 10;
+                }
+
+                if (radius < 4)
+                {
+                        radius = 4;
+                }
+
+                int32_t colorOffset = 0;
+                if (layer->colorAmplitude)
+                {
+                        colorOffset = (bootSin((uint8_t)(angle + layer->colorPhase)) *
+                                layer->colorAmplitude) >> 10;
+                }
+
+                uint8_t r = clampToByte(layer->baseR + colorOffset);
+                uint8_t g = clampToByte(layer->baseG + (colorOffset / 3));
+                uint8_t b = clampToByte(layer->baseB + (colorOffset / 3));
+
+                drawRotatedSquare(chain, centerX, centerY, (int)radius, angle, r, g, b);
+        }
+
+        drawRotatedSquare(
+                chain, centerX, centerY, 12, (uint8_t)(frame * 6), 255, 120, 120);
+}
+
 static void sendCommand(uint8_t command, uint16_t argument)
 {
-	uint8_t test[] = {CDROM_TEST_DSP_CMD, (uint8_t)(0xF0 | command), (uint8_t)((argument >> 8) & 0xFF), (uint8_t)(argument & 0xFF)};
+        uint8_t test[] = {CDROM_TEST_DSP_CMD, (uint8_t)(0xF0 | command), (uint8_t)((argument >> 8) & 0xFF), (uint8_t)(argument & 0xFF)};
 	issueCDROMCommand(CDROM_CMD_TEST, test, sizeof(test));
 }
 
@@ -430,23 +605,24 @@ int main(int argc, const char **argv)
 		TEXTURE_COLOR_DEPTH
 	);
 
-	DMAChain dmaChains[2];
-	bool usingSecondFrame = false;
+        DMAChain dmaChains[2];
+        bool usingSecondFrame = false;
 
-	char sectorBuffer[2324];
-	
-	static uint8_t highlight = 0;
-	
-	uint32_t fileEntryCount = 0;
+        char sectorBuffer[2324];
 
-	uint16_t selectedindex = 0;
+        static uint8_t highlight = 0;
 
-	int creditsmenu = 0;
+        uint32_t fileEntryCount = 0;
 
-	uint16_t previousButtons = getButtonPress(0);
+        uint16_t selectedindex = 0;
 
-	for (;;)
-	{
+        int creditsmenu = 0;
+
+        uint16_t previousButtons = getButtonPress(0);
+        uint32_t frameCounter = 0;
+
+        for (;;)
+        {
 		int bufferX = usingSecondFrame ? SCREEN_WIDTH : 0;
 		int bufferY = 0;
 
@@ -465,14 +641,11 @@ int main(int argc, const char **argv)
 		ptr[2] = gp0_fbOffset2(bufferX + SCREEN_WIDTH - 1, bufferY + SCREEN_HEIGHT - 2);
 		ptr[3] = gp0_fbOrigin(bufferX, bufferY);
 
-		ptr    = allocatePacket(chain, 3);
-		ptr[0] = gp0_rgb(209, 52, 52) | gp0_vramFill();
-		ptr[1] = gp0_xy(bufferX, bufferY);
-		ptr[2] = gp0_xy(SCREEN_WIDTH, SCREEN_HEIGHT);
+                drawRedBootBackground(chain, bufferX, bufferY, frameCounter);
 
-		//draw logo
-		//if (firstboot == 0 && loadingmenu == 0){
-			ptr    = allocatePacket(chain, 5);
+                //draw logo
+                //if (firstboot == 0 && loadingmenu == 0){
+                        ptr    = allocatePacket(chain, 5);
 			ptr[0] = gp0_texpage(logo.page, false, false);
 			ptr[1] = gp0_rectangle(true, true, true);
 			ptr[2] = gp0_xy(96, 10);
@@ -749,9 +922,11 @@ int main(int argc, const char **argv)
 				}
 			}
 
-			currentCommand = MENU_COMMAND_NONE;
-		}
-	}
+                        currentCommand = MENU_COMMAND_NONE;
+                }
 
-	return 0;
+                frameCounter++;
+        }
+
+        return 0;
 }
