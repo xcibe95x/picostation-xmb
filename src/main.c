@@ -238,11 +238,11 @@ static void sendCommand(uint8_t command, uint16_t argument)
 }
 
 static void printString(
-	DMAChain *chain, const TextureInfo *font, int x, int y, const char *str)
+        DMAChain *chain, const TextureInfo *font, int x, int y, const char *str)
 {
-	int currentX = x, currentY = y;
+        int currentX = x, currentY = y;
 
-	uint32_t *ptr;
+        uint32_t *ptr;
 
 	// Start by sending a texpage command to tell the GPU to use the font's
 	// spritesheet. Note that the texpage command before a drawing command can
@@ -308,6 +308,183 @@ static void printString(
 #define TEXTURE_WIDTH 128
 #define TEXTURE_HEIGHT 20
 #define TEXTURE_COLOR_DEPTH GP0_COLOR_4BPP
+
+#define LIST_PANEL_X 16
+#define LIST_PANEL_Y 64
+#define LIST_PANEL_WIDTH 156
+#define LIST_PANEL_HEIGHT 140
+#define LIST_ENTRY_OFFSET_X (LIST_PANEL_X + 12)
+#define LIST_ENTRY_OFFSET_Y (LIST_PANEL_Y + 18)
+#define LIST_ENTRY_HEIGHT 13
+
+#define CARD_PANEL_X 188
+#define CARD_PANEL_Y 56
+#define CARD_PANEL_WIDTH (SCREEN_WIDTH - CARD_PANEL_X - 16)
+#define CARD_PANEL_HEIGHT 152
+#define CARD_CONTENT_X (CARD_PANEL_X + 10)
+#define CARD_CONTENT_Y (CARD_PANEL_Y + 18)
+
+#define HEADER_TEXT_X 16
+#define HEADER_TEXT_Y 24
+
+static void drawPanel(
+        DMAChain *chain,
+        int x,
+        int y,
+        int width,
+        int height,
+        uint8_t r,
+        uint8_t g,
+        uint8_t b,
+        bool blend
+)
+{
+        uint32_t *ptr = allocatePacket(chain, 3);
+        ptr[0] = gp0_rgb(r, g, b) | gp0_rectangle(false, false, blend);
+        ptr[1] = gp0_xy(x, y);
+        ptr[2] = gp0_xy(width, height);
+}
+
+static void drawGradientBackground(DMAChain *chain)
+{
+        const struct
+        {
+                uint8_t r, g, b;
+        } stops[] = {
+                {10, 10, 40},
+                {18, 18, 58},
+                {24, 24, 74},
+                {32, 32, 92},
+                {38, 38, 112},
+                {46, 46, 132},
+        };
+
+        const int numStops = sizeof(stops) / sizeof(stops[0]);
+        const int sliceHeight = (SCREEN_HEIGHT + numStops - 1) / numStops;
+
+        for (int i = 0; i < numStops; ++i)
+        {
+                int y = i * sliceHeight;
+                int height = sliceHeight;
+                if (y + height > SCREEN_HEIGHT)
+                {
+                        height = SCREEN_HEIGHT - y;
+                }
+                drawPanel(
+                        chain,
+                        0,
+                        y,
+                        SCREEN_WIDTH,
+                        height,
+                        stops[i].r,
+                        stops[i].g,
+                        stops[i].b,
+                        false);
+        }
+}
+
+static void printHeading(
+        DMAChain *chain,
+        const TextureInfo *font,
+        int x,
+        int y,
+        const char *text,
+        size_t maxLen)
+{
+        char buffer[128];
+        size_t len = strlen(text);
+        if (len < maxLen)
+        {
+                strncpy(buffer, text, sizeof(buffer));
+                buffer[sizeof(buffer) - 1] = '\0';
+        }
+        else
+        {
+                size_t copyLen = MIN(maxLen, sizeof(buffer) - 1);
+                if (copyLen > 3)
+                {
+                        copyLen -= 3;
+                }
+                strncpy(buffer, text, copyLen);
+                buffer[copyLen] = '\0';
+                strncat(buffer, "...", sizeof(buffer) - strlen(buffer) - 1);
+        }
+
+        printString(chain, font, x, y, buffer);
+}
+
+static void renderGameCard(
+        DMAChain *chain,
+        const TextureInfo *font,
+        const TextureInfo *fallbackLogo,
+        const fileData *file,
+        uint8_t highlightLevel)
+{
+        drawPanel(
+                chain,
+                CARD_PANEL_X,
+                CARD_PANEL_Y,
+                CARD_PANEL_WIDTH,
+                CARD_PANEL_HEIGHT,
+                18,
+                18,
+                46,
+                true);
+
+        uint8_t accent = 64 + (highlightLevel & 0x1F);
+        drawPanel(
+                chain,
+                CARD_PANEL_X + 2,
+                CARD_PANEL_Y + 2,
+                CARD_PANEL_WIDTH - 4,
+                26,
+                accent,
+                accent,
+                accent + 36,
+                true);
+
+        const char *title = file ? file->filename : "No Selection";
+        printHeading(chain, font, CARD_CONTENT_X, CARD_CONTENT_Y, title, 28);
+
+        int infoY = CARD_CONTENT_Y + 28;
+        if (file)
+        {
+                if (file->flag == 1)
+                {
+                        printString(chain, font, CARD_CONTENT_X, infoY, "Directory");
+                }
+                else
+                {
+                        printString(chain, font, CARD_CONTENT_X, infoY, "Disc Image");
+                }
+                infoY += FONT_LINE_HEIGHT + 4;
+        }
+
+        drawPanel(
+                chain,
+                CARD_CONTENT_X,
+                infoY,
+                CARD_PANEL_WIDTH - 20,
+                CARD_PANEL_HEIGHT - (infoY - CARD_PANEL_Y) - 12,
+                32,
+                32,
+                72,
+                true);
+
+        int imageX = CARD_CONTENT_X + ((CARD_PANEL_WIDTH - 20) / 2) - (fallbackLogo->width / 2);
+        int imageY = infoY + ((CARD_PANEL_HEIGHT - (infoY - CARD_PANEL_Y) - 12) / 2) - (fallbackLogo->height / 2);
+        if (imageY < infoY + 4)
+        {
+                imageY = infoY + 4;
+        }
+
+        uint32_t *ptr = allocatePacket(chain, 5);
+        ptr[0] = gp0_texpage(fallbackLogo->page, false, false);
+        ptr[1] = gp0_rectangle(true, true, true);
+        ptr[2] = gp0_xy(imageX, imageY);
+        ptr[3] = gp0_uv(fallbackLogo->u, fallbackLogo->v, fallbackLogo->clut);
+        ptr[4] = gp0_xy(fallbackLogo->width, fallbackLogo->height);
+}
 
 extern const uint8_t fontTexture[], fontPalette[], logoTexture[], logoPalette[];
 extern const uint8_t click_sfx[], slide_sfx[];
@@ -465,20 +642,19 @@ int main(int argc, const char **argv)
 		ptr[2] = gp0_fbOffset2(bufferX + SCREEN_WIDTH - 1, bufferY + SCREEN_HEIGHT - 2);
 		ptr[3] = gp0_fbOrigin(bufferX, bufferY);
 
-		ptr    = allocatePacket(chain, 3);
-		ptr[0] = gp0_rgb(209, 52, 52) | gp0_vramFill();
-		ptr[1] = gp0_xy(bufferX, bufferY);
-		ptr[2] = gp0_xy(SCREEN_WIDTH, SCREEN_HEIGHT);
+                ptr    = allocatePacket(chain, 3);
+                ptr[0] = gp0_rgb(8, 8, 30) | gp0_vramFill();
+                ptr[1] = gp0_xy(bufferX, bufferY);
+                ptr[2] = gp0_xy(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-		//draw logo
-		//if (firstboot == 0 && loadingmenu == 0){
-			ptr    = allocatePacket(chain, 5);
-			ptr[0] = gp0_texpage(logo.page, false, false);
-			ptr[1] = gp0_rectangle(true, true, true);
-			ptr[2] = gp0_xy(96, 10);
-			ptr[3] = gp0_uv(logo.u, logo.v, logo.clut);
-			ptr[4] = gp0_xy(logo.width, logo.height);
-		//}
+                drawGradientBackground(chain);
+
+                uint32_t *logoPacket = allocatePacket(chain, 5);
+                logoPacket[0] = gp0_texpage(logo.page, false, false);
+                logoPacket[1] = gp0_rectangle(true, true, true);
+                logoPacket[2] = gp0_xy(HEADER_TEXT_X, 10);
+                logoPacket[3] = gp0_uv(logo.u, logo.v, logo.clut);
+                logoPacket[4] = gp0_xy(logo.width, logo.height);
 		
 		// get the controller button press
 		uint16_t buttons = getButtonPress(0);
@@ -503,140 +679,159 @@ int main(int argc, const char **argv)
 			hold = 0;
 		}
 
-		const uint16_t pageSize = 16;
+                const uint16_t pageSize = 10;
 
 		if (pressedButtons & BUTTON_MASK_SELECT)
 		{
 			creditsmenu = creditsmenu == 0 ? 1 : 0;
 		}
 
-		if (creditsmenu == 0)
-		{
-			if (pressedButtons & BUTTON_MASK_UP)
-			{
-				selectedindex = selectedindex > 0 ? selectedindex - 1 : fileEntryCount - 1;
-			}
-			else if (pressedButtons & BUTTON_MASK_DOWN)
-			{
-				selectedindex = selectedindex < (int)(fileEntryCount - 1) ? selectedindex + 1 : 0;
-			}
-			
-			if (pressedButtons & (BUTTON_MASK_LEFT | BUTTON_MASK_L1))
-			{
-				selectedindex = selectedindex >= pageSize ? selectedindex - pageSize : 0;
-			}
-			else if (pressedButtons & (BUTTON_MASK_RIGHT | BUTTON_MASK_R1))
-			{
-				selectedindex = selectedindex < (int)(fileEntryCount - (pageSize + 1)) ? selectedindex + pageSize : fileEntryCount - 1;
-			}
-			
-			if (pressedButtons & (BUTTON_MASK_UP | BUTTON_MASK_DOWN | BUTTON_MASK_LEFT | BUTTON_MASK_RIGHT 
-																	| BUTTON_MASK_L1   | BUTTON_MASK_R1))
-			{
-				sound_playOnChannel(&sfx_click, SFX_VOL, SFX_VOL, 0);
-			}
 
-			if (pressedButtons & BUTTON_MASK_START)
-			{
-				fileData *file = file_manager_get_file_data(selectedindex);
-				if (file->flag == 0)
-				{
-					currentCommand = MENU_COMMAND_MOUNT_FILE_SLOW;
-				}
-			}
+                if (creditsmenu == 0)
+                {
+                        if (fileEntryCount > 0)
+                        {
+                                if (pressedButtons & BUTTON_MASK_UP)
+                                {
+                                        selectedindex = selectedindex > 0 ? selectedindex - 1 : fileEntryCount - 1;
+                                }
+                                else if (pressedButtons & BUTTON_MASK_DOWN)
+                                {
+                                        selectedindex = selectedindex < (int)(fileEntryCount - 1) ? selectedindex + 1 : 0;
+                                }
 
-			if (pressedButtons & BUTTON_MASK_X)
-			{
-				fileData *file = file_manager_get_file_data(selectedindex);
-				if (file->flag == 0)
-				{
-					currentCommand = MENU_COMMAND_MOUNT_FILE_FAST;
-				}
-				else
-				{
-					currentCommand = MENU_COMMAND_GOTO_DIRECTORY;
-				}
-			}
+                                if (pressedButtons & (BUTTON_MASK_LEFT | BUTTON_MASK_L1))
+                                {
+                                        selectedindex = selectedindex >= pageSize ? selectedindex - pageSize : 0;
+                                }
+                                else if (pressedButtons & (BUTTON_MASK_RIGHT | BUTTON_MASK_R1))
+                                {
+                                        if (fileEntryCount > pageSize)
+                                        {
+                                                uint16_t maxIndex = fileEntryCount > 0 ? fileEntryCount - 1 : 0;
+                                                selectedindex = selectedindex + pageSize <= maxIndex ? selectedindex + pageSize : maxIndex;
+                                        }
+                                }
+                        }
+                        else
+                        {
+                                selectedindex = 0;
+                        }
 
-			if (pressedButtons & BUTTON_MASK_SQUARE)
-			{
-				currentCommand = MENU_COMMAND_GOTO_PARENT;
-			}
-			
-			if (pressedButtons & (BUTTON_MASK_SQUARE | BUTTON_MASK_X | BUTTON_MASK_START))
-			{
-				sound_playOnChannel(&sfx_slide, SFX_VOL, SFX_VOL, 1);
-			}
+                        if (pressedButtons & (BUTTON_MASK_UP | BUTTON_MASK_DOWN | BUTTON_MASK_LEFT | BUTTON_MASK_RIGHT
+                                        | BUTTON_MASK_L1   | BUTTON_MASK_R1))
+                        {
+                                sound_playOnChannel(&sfx_click, SFX_VOL, SFX_VOL, 0);
+                        }
 
-			if (pressedButtons & BUTTON_MASK_TRIANGLE)
-			{
-				currentCommand = MENU_COMMAND_BOOTLOADER;
-			}
+                        if (fileEntryCount > 0)
+                        {
+                                fileData *file = file_manager_get_file_data(selectedindex);
 
-			if (currentCommand != MENU_COMMAND_NONE)
-			{
-				printString(chain, &font, 40, 40, "Please Wait Loading...");
-			}
-			else
-			{
-				char fbuffer[32];
-				snprintf(fbuffer, sizeof(fbuffer), "%i of %i", selectedindex + 1, fileEntryCount);
-				printString(chain, &font, 16, 16, fbuffer);
+                                if (pressedButtons & BUTTON_MASK_START)
+                                {
+                                        if (file->flag == 0)
+                                        {
+                                                currentCommand = MENU_COMMAND_MOUNT_FILE_SLOW;
+                                        }
+                                }
 
-				int32_t start = 0;
-				if ((int32_t)fileEntryCount >= pageSize)
-				{
-					start = MIN(MAX(selectedindex - (pageSize / 2), 0), (int32_t)fileEntryCount - pageSize);
-				}
+                                if (pressedButtons & BUTTON_MASK_X)
+                                {
+                                        if (file->flag == 0)
+                                        {
+                                                currentCommand = MENU_COMMAND_MOUNT_FILE_FAST;
+                                        }
+                                        else
+                                        {
+                                                currentCommand = MENU_COMMAND_GOTO_DIRECTORY;
+                                        }
+                                }
+                        }
 
-				int32_t itemCount = MIN(start + pageSize, (int32_t)fileEntryCount) - start;
-				if (itemCount > 0)
-				{
-					for (int32_t i = 0; i < itemCount; i++)
-					{
-						uint32_t index = start + i;
+                        if (pressedButtons & BUTTON_MASK_SQUARE)
+                        {
+                                currentCommand = MENU_COMMAND_GOTO_PARENT;
+                        }
 
-						if (index == selectedindex)
-						{
-							uint8_t color = highlight + 48;
-							ptr = allocatePacket(chain, 3);
-							ptr[0] = gp0_rgb(color, color, color) | gp0_rectangle(false, false, false);
-							ptr[1] = gp0_xy(0, 32 + (i * 11));
-							ptr[2] = gp0_xy(320, 12);
-						}
+                        if (pressedButtons & (BUTTON_MASK_SQUARE | BUTTON_MASK_X | BUTTON_MASK_START))
+                        {
+                                sound_playOnChannel(&sfx_slide, SFX_VOL, SFX_VOL, 1);
+                        }
 
-						fileData *file = file_manager_get_file_data(index);
+                        if (pressedButtons & BUTTON_MASK_TRIANGLE)
+                        {
+                                currentCommand = MENU_COMMAND_BOOTLOADER;
+                        }
 
-						char buffer[300];
-						snprintf(buffer, sizeof(buffer), "%-4d %s %s\n", index + 1, file->flag == 0 ? "\x8f" : "\x92", file->filename);
-						printString(chain, &font, 16, 34 + (i * 11), buffer);
-					}
-				}
-				else
-				{
-					printString(chain, &font, 40, 40, "Empty Folder");
-				}
+                        drawPanel(chain, LIST_PANEL_X, LIST_PANEL_Y, LIST_PANEL_WIDTH, LIST_PANEL_HEIGHT, 14, 14, 36, true);
+                        drawPanel(chain, LIST_PANEL_X + 2, LIST_PANEL_Y + 2, LIST_PANEL_WIDTH - 4, LIST_PANEL_HEIGHT - 4, 8, 8, 22, true);
 
-				printString(chain, &font, 12, 212, "\x91 Select / Fast Boot, \x96 Regular Boot, \x90 Parent Folder");
-				
-				highlight = (highlight + 1) & 0x3F;
-			}
-		}
-		else
-		{
-			printString(
-				chain, &font, 40, 40,
-				"PicosSation Menu Alpha Release");
-			printString(
-				chain, &font, 40, 80,
-				"Huge thanks to Rama, Skitchin, Raijin, SpicyJpeg,\nDanhans42, NicholasNoble and ChatGPT");
+                        fileData *selectedFile = (fileEntryCount > 0 && selectedindex < fileEntryCount)
+                                        ? file_manager_get_file_data(selectedindex)
+                                        : NULL;
 
-			printString(
-				chain, &font, 40, 120,
-				"https://github.com/megavolt85/picostation-menu");
-		}
+                        renderGameCard(chain, &font, &logo, selectedFile, highlight);
 
+                        int headerLabelX = HEADER_TEXT_X + logo.width + 12;
+                        printString(chain, &font, headerLabelX, HEADER_TEXT_Y, "Game Library");
 
+                        char fbuffer[32];
+                        snprintf(fbuffer, sizeof(fbuffer), "%i of %i", fileEntryCount > 0 ? selectedindex + 1 : 0, fileEntryCount);
+                        printString(chain, &font, headerLabelX, HEADER_TEXT_Y + FONT_LINE_HEIGHT, fbuffer);
+
+                        if (currentCommand != MENU_COMMAND_NONE)
+                        {
+                                printString(chain, &font, LIST_PANEL_X + 12, LIST_PANEL_Y + 12, "Please Wait - Loading");
+                        }
+                        else if (fileEntryCount > 0)
+                        {
+                                int32_t start = 0;
+                                if ((int32_t)fileEntryCount >= pageSize)
+                                {
+                                        start = MIN(MAX((int32_t)selectedindex - (pageSize / 2), 0), (int32_t)fileEntryCount - pageSize);
+                                }
+
+                                int32_t itemCount = MIN(start + pageSize, (int32_t)fileEntryCount) - start;
+                                for (int32_t i = 0; i < itemCount; i++)
+                                {
+                                        uint32_t index = start + i;
+                                        int entryY = LIST_ENTRY_OFFSET_Y + (i * LIST_ENTRY_HEIGHT);
+
+                                        if (index == selectedindex)
+                                        {
+                                                uint8_t color = 40 + (highlight & 0x1F);
+                                                drawPanel(chain, LIST_PANEL_X + 4, entryY - 4, LIST_PANEL_WIDTH - 8, LIST_ENTRY_HEIGHT + 6, color, color + 18, color + 48, true);
+                                        }
+
+                                        fileData *file = file_manager_get_file_data(index);
+                                        char buffer[96];
+                                        snprintf(buffer, sizeof(buffer), "%02d  %s %s", index + 1, file->flag == 0 ? "" : "", file->filename);
+                                        printHeading(chain, &font, LIST_ENTRY_OFFSET_X, entryY, buffer, 32);
+                                }
+                        }
+                        else
+                        {
+                                printString(chain, &font, LIST_ENTRY_OFFSET_X, LIST_ENTRY_OFFSET_Y, "Empty Folder");
+                        }
+
+                        printString(chain, &font, 16, SCREEN_HEIGHT - 22, "X Fast Boot  START Full Boot  [] Parent");
+                        printString(chain, &font, 16, SCREEN_HEIGHT - 12, "SELECT Credits  L1/R1 Page  TRIANGLE Bootloader");
+
+                        highlight = (highlight + 1) & 0x3F;
+                }
+                else
+                {
+                        drawPanel(chain, 32, 70, SCREEN_WIDTH - 64, SCREEN_HEIGHT - 140, 14, 14, 36, true);
+                        drawPanel(chain, 38, 76, SCREEN_WIDTH - 76, SCREEN_HEIGHT - 152, 6, 6, 20, true);
+
+                        printString(chain, &font, 48, 92, "Picostation Menu Alpha Release");
+                        printString(chain, &font, 48, 122, "Huge thanks to Rama, Skitchin, Raijin,");
+                        printString(chain, &font, 48, 134, "SpicyJpeg, Danhans42, NicholasNoble");
+                        printString(chain, &font, 48, 146, "and ChatGPT");
+                        printString(chain, &font, 48, 176, "https://github.com/megavolt85/picostation-menu");
+                        printString(chain, &font, 48, 202, "SELECT to return");
+                }
 		previousButtons = buttons;
 		*(chain->nextPacket) = gp0_endTag(0);
 		waitForGP0Ready();
