@@ -53,6 +53,7 @@ add_executable(
     src/gpu.c
     src/main.c
     src/file_manager.c
+    src/xmb/xmb.c
     src/controller.c
     src/psxproject/cdrom.c
     src/psxproject/delay.c

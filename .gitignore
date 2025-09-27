@@ -55,4 +55,11 @@ build/
 env/
 .vscode
 .clangd
+.rej
+.patch
 
+src/main.c.rej
+.gitignore
+.gitignore
+main_utf8.patch
+main.patch
