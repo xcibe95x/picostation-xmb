@@ -309,20 +309,14 @@ static void printString(
 #define TEXTURE_HEIGHT 20
 #define TEXTURE_COLOR_DEPTH GP0_COLOR_4BPP
 
-#define LIST_PANEL_X 16
+#define LIST_PANEL_X 12
 #define LIST_PANEL_Y 64
-#define LIST_PANEL_WIDTH 156
-#define LIST_PANEL_HEIGHT 140
-#define LIST_ENTRY_OFFSET_X (LIST_PANEL_X + 12)
-#define LIST_ENTRY_OFFSET_Y (LIST_PANEL_Y + 18)
-#define LIST_ENTRY_HEIGHT 13
+#define LIST_PANEL_WIDTH (SCREEN_WIDTH - (LIST_PANEL_X * 2))
+#define LIST_PANEL_HEIGHT 160
+#define LIST_ENTRY_OFFSET_X (LIST_PANEL_X + 16)
+#define LIST_ENTRY_OFFSET_Y (LIST_PANEL_Y + 20)
+#define LIST_ENTRY_HEIGHT 18
 
-#define CARD_PANEL_X 188
-#define CARD_PANEL_Y 56
-#define CARD_PANEL_WIDTH (SCREEN_WIDTH - CARD_PANEL_X - 16)
-#define CARD_PANEL_HEIGHT 152
-#define CARD_CONTENT_X (CARD_PANEL_X + 10)
-#define CARD_CONTENT_Y (CARD_PANEL_Y + 18)
 
 #define HEADER_TEXT_X 16
 #define HEADER_TEXT_Y 24
@@ -345,43 +339,6 @@ static void drawPanel(
         ptr[2] = gp0_xy(width, height);
 }
 
-static void drawGradientBackground(DMAChain *chain)
-{
-        const struct
-        {
-                uint8_t r, g, b;
-        } stops[] = {
-                {10, 10, 40},
-                {18, 18, 58},
-                {24, 24, 74},
-                {32, 32, 92},
-                {38, 38, 112},
-                {46, 46, 132},
-        };
-
-        const int numStops = sizeof(stops) / sizeof(stops[0]);
-        const int sliceHeight = (SCREEN_HEIGHT + numStops - 1) / numStops;
-
-        for (int i = 0; i < numStops; ++i)
-        {
-                int y = i * sliceHeight;
-                int height = sliceHeight;
-                if (y + height > SCREEN_HEIGHT)
-                {
-                        height = SCREEN_HEIGHT - y;
-                }
-                drawPanel(
-                        chain,
-                        0,
-                        y,
-                        SCREEN_WIDTH,
-                        height,
-                        stops[i].r,
-                        stops[i].g,
-                        stops[i].b,
-                        false);
-        }
-}
 
 static void printHeading(
         DMAChain *chain,
@@ -411,79 +368,6 @@ static void printHeading(
         }
 
         printString(chain, font, x, y, buffer);
-}
-
-static void renderGameCard(
-        DMAChain *chain,
-        const TextureInfo *font,
-        const TextureInfo *fallbackLogo,
-        const fileData *file,
-        uint8_t highlightLevel)
-{
-        drawPanel(
-                chain,
-                CARD_PANEL_X,
-                CARD_PANEL_Y,
-                CARD_PANEL_WIDTH,
-                CARD_PANEL_HEIGHT,
-                18,
-                18,
-                46,
-                true);
-
-        uint8_t accent = 64 + (highlightLevel & 0x1F);
-        drawPanel(
-                chain,
-                CARD_PANEL_X + 2,
-                CARD_PANEL_Y + 2,
-                CARD_PANEL_WIDTH - 4,
-                26,
-                accent,
-                accent,
-                accent + 36,
-                true);
-
-        const char *title = file ? file->filename : "No Selection";
-        printHeading(chain, font, CARD_CONTENT_X, CARD_CONTENT_Y, title, 28);
-
-        int infoY = CARD_CONTENT_Y + 28;
-        if (file)
-        {
-                if (file->flag == 1)
-                {
-                        printString(chain, font, CARD_CONTENT_X, infoY, "Directory");
-                }
-                else
-                {
-                        printString(chain, font, CARD_CONTENT_X, infoY, "Disc Image");
-                }
-                infoY += FONT_LINE_HEIGHT + 4;
-        }
-
-        drawPanel(
-                chain,
-                CARD_CONTENT_X,
-                infoY,
-                CARD_PANEL_WIDTH - 20,
-                CARD_PANEL_HEIGHT - (infoY - CARD_PANEL_Y) - 12,
-                32,
-                32,
-                72,
-                true);
-
-        int imageX = CARD_CONTENT_X + ((CARD_PANEL_WIDTH - 20) / 2) - (fallbackLogo->width / 2);
-        int imageY = infoY + ((CARD_PANEL_HEIGHT - (infoY - CARD_PANEL_Y) - 12) / 2) - (fallbackLogo->height / 2);
-        if (imageY < infoY + 4)
-        {
-                imageY = infoY + 4;
-        }
-
-        uint32_t *ptr = allocatePacket(chain, 5);
-        ptr[0] = gp0_texpage(fallbackLogo->page, false, false);
-        ptr[1] = gp0_rectangle(true, true, true);
-        ptr[2] = gp0_xy(imageX, imageY);
-        ptr[3] = gp0_uv(fallbackLogo->u, fallbackLogo->v, fallbackLogo->clut);
-        ptr[4] = gp0_xy(fallbackLogo->width, fallbackLogo->height);
 }
 
 extern const uint8_t fontTexture[], fontPalette[], logoTexture[], logoPalette[];
@@ -643,16 +527,26 @@ int main(int argc, const char **argv)
 		ptr[3] = gp0_fbOrigin(bufferX, bufferY);
 
                 ptr    = allocatePacket(chain, 3);
-                ptr[0] = gp0_rgb(8, 8, 30) | gp0_vramFill();
+                ptr[0] = gp0_rgb(59, 0, 0) | gp0_vramFill();
                 ptr[1] = gp0_xy(bufferX, bufferY);
                 ptr[2] = gp0_xy(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-                drawGradientBackground(chain);
+                ptr    = allocatePacket(chain, 8);
+                ptr[0] = gp0_rgb(59, 0, 0) | gp0_shadedQuad(true, false, false);
+                ptr[1] = gp0_xy(bufferX + 0, bufferY + 0);
+                ptr[2] = gp0_rgb(167, 32, 28);
+                ptr[3] = gp0_xy(bufferX + SCREEN_WIDTH, bufferY + 0);
+                ptr[4] = gp0_rgb(55, 0, 0);
+                ptr[5] = gp0_xy(bufferX + 0, bufferY + SCREEN_HEIGHT - 1);
+                ptr[6] = gp0_rgb(209, 53, 54);
+                ptr[7] = gp0_xy(bufferX + SCREEN_WIDTH, bufferY + SCREEN_HEIGHT - 1);
+
+                drawPanel(chain, bufferX, bufferY, SCREEN_WIDTH, 36, 0, 0, 0, true);
 
                 uint32_t *logoPacket = allocatePacket(chain, 5);
                 logoPacket[0] = gp0_texpage(logo.page, false, false);
                 logoPacket[1] = gp0_rectangle(true, true, true);
-                logoPacket[2] = gp0_xy(HEADER_TEXT_X, 10);
+                logoPacket[2] = gp0_xy(HEADER_TEXT_X, 6);
                 logoPacket[3] = gp0_uv(logo.u, logo.v, logo.clut);
                 logoPacket[4] = gp0_xy(logo.width, logo.height);
 		
@@ -679,7 +573,7 @@ int main(int argc, const char **argv)
 			hold = 0;
 		}
 
-                const uint16_t pageSize = 10;
+                const uint16_t pageSize = 8;
 
 		if (pressedButtons & BUTTON_MASK_SELECT)
 		{
@@ -764,14 +658,7 @@ int main(int argc, const char **argv)
                                 currentCommand = MENU_COMMAND_BOOTLOADER;
                         }
 
-                        drawPanel(chain, LIST_PANEL_X, LIST_PANEL_Y, LIST_PANEL_WIDTH, LIST_PANEL_HEIGHT, 14, 14, 36, true);
-                        drawPanel(chain, LIST_PANEL_X + 2, LIST_PANEL_Y + 2, LIST_PANEL_WIDTH - 4, LIST_PANEL_HEIGHT - 4, 8, 8, 22, true);
-
-                        fileData *selectedFile = (fileEntryCount > 0 && selectedindex < fileEntryCount)
-                                        ? file_manager_get_file_data(selectedindex)
-                                        : NULL;
-
-                        renderGameCard(chain, &font, &logo, selectedFile, highlight);
+                        drawPanel(chain, LIST_PANEL_X, LIST_PANEL_Y, LIST_PANEL_WIDTH, LIST_PANEL_HEIGHT, 18, 18, 52, true);
 
                         int headerLabelX = HEADER_TEXT_X + logo.width + 12;
                         printString(chain, &font, headerLabelX, HEADER_TEXT_Y, "Game Library");
