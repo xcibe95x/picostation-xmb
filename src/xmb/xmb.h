@@ -79,8 +79,8 @@ void xmb_handle_input(XMBMenu* menu, int input);
 int  xmb_get_current_item(const XMBMenu* menu);
 void xmb_set_current_item(XMBMenu* menu, int item);
 void xmb_clamp_current_item(XMBMenu* menu, int category);
+void xmb_draw_background(DMAChain *chain, int bufferX, int bufferY, int screenWidth, int screenHeight);
 
-void xmb_init(XMBMenu* menu);
 void xmb_draw(const XMBMenu* menu,
              DMAChain* chain,
              const TextureInfo* font,

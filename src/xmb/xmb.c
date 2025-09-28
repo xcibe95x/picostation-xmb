@@ -155,6 +155,7 @@ void xmb_handle_input(XMBMenu* menu, int input)
 #define FOOTER_PRIMARY_Y (SCREEN_HEIGHT - 22)
 #define FOOTER_SECONDARY_Y (SCREEN_HEIGHT - 12)
 
+
 static void truncate_with_ellipsis(const char* source, char* buffer, size_t bufferSize, size_t maxChars)
 {
     if (!source || bufferSize == 0)
@@ -188,7 +189,7 @@ static void draw_categories(const XMBMenu* menu,
                             void (*draw_panel)(DMAChain*, int, int, int, int, uint8_t, uint8_t, uint8_t, bool),
                             void (*draw_text)(DMAChain*, const TextureInfo*, int, int, const char*))
 {
-    int startX = HEADER_TEXT_X + (logo ? (logo->width + 20) : 32);
+    int startX = HEADER_TEXT_X + (32);
     int boxY = HEADER_TEXT_Y - 10;
 
     for (int i = 0; i < menu->category_count; ++i)
@@ -204,6 +205,28 @@ static void draw_categories(const XMBMenu* menu,
 
         draw_text(chain, font, boxX, HEADER_TEXT_Y, category->name);
     }
+}
+
+void xmb_draw_background(DMAChain *chain, int bufferX, int bufferY, int screenWidth, int screenHeight)
+{
+    uint32_t *ptr;
+
+    // Fill base with the darkest color
+    ptr    = allocatePacket(chain, 3);
+    ptr[0] = gp0_rgb(27, 25, 47) | gp0_vramFill();
+    ptr[1] = gp0_xy(bufferX, bufferY);
+    ptr[2] = gp0_xy(screenWidth, screenHeight);
+
+    // Main gradient quad
+    ptr    = allocatePacket(chain, 8);
+    ptr[0] = gp0_rgb(49, 81, 102) | gp0_shadedQuad(true, false, false); // top-left bright
+    ptr[1] = gp0_xy(0, 0);
+    ptr[2] = gp0_rgb(49, 81, 102);  // top-right bright
+    ptr[3] = gp0_xy(screenWidth, 0);
+    ptr[4] = gp0_rgb(27, 25, 47);  // bottom-left dark
+    ptr[5] = gp0_xy(0, screenHeight - 1);
+    ptr[6] = gp0_rgb(27, 25, 47);  // bottom-right dark
+    ptr[7] = gp0_xy(screenWidth, screenHeight - 1);
 }
 
 static void draw_footer(const XMBCategory* category,
@@ -251,7 +274,7 @@ static void draw_game_browser(const XMBMenu* menu,
                               void (*draw_text)(DMAChain*, const TextureInfo*, int, int, const char*),
                               fileData* (*get_file)(uint16_t index))
 {
-    draw_panel(chain, LIST_PANEL_X, LIST_PANEL_Y, LIST_PANEL_WIDTH, LIST_PANEL_HEIGHT, 18, 18, 52, true);
+    // draw_panel(chain, LIST_PANEL_X, LIST_PANEL_Y, LIST_PANEL_WIDTH, LIST_PANEL_HEIGHT, 18, 18, 52, true);
 
     draw_text(chain, font, LIST_PANEL_X + 12, LIST_PANEL_Y + 8, "Game Library");
 
@@ -386,7 +409,7 @@ void xmb_init(XMBMenu* menu)
         return;
     }
 
-    xmb_init(menu);
+    memset(menu, 0, sizeof(*menu));
     menu->category_count = UI_CATEGORY_COUNT;
     menu->current_category = UI_CATEGORY_GAMES;
 
@@ -402,7 +425,7 @@ void xmb_init(XMBMenu* menu)
     games->item_count = 0;
 
     XMBCategory* system = &menu->categories[UI_CATEGORY_SYSTEM];
-    system->name = "System";
+    system->name = "Settings";
     system->icon_path = NULL;
     system->type = XMB_CATEGORY_ACTIONS;
     system->item_count = 0;

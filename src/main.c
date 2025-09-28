@@ -51,6 +51,7 @@
 #include "file_manager.h"
 #include "counters.h"
 #include "logging.h"
+#include "xmb/xmb.h"
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -199,18 +200,7 @@ static const SpriteInfo fontSprites[] = {
 
 typedef enum
 {
-	MENU_COMMAND_NONE = 0x0,
-	MENU_COMMAND_GOTO_ROOT = 0x1,
-	MENU_COMMAND_GOTO_PARENT = 0x2,
-	MENU_COMMAND_GOTO_DIRECTORY = 0x3,
-	MENU_COMMAND_MOUNT_FILE_FAST = 0x4,
-	MENU_COMMAND_MOUNT_FILE_SLOW = 0x5,
-	MENU_COMMAND_BOOTLOADER = 0x6
-} MENU_COMMAND;
-
-typedef enum
-{
-	COMMAND_GOTO_ROOT = 0x1,
+    COMMAND_GOTO_ROOT = 0x1,
 	COMMAND_GOTO_PARENT = 0x2,
 	COMMAND_GOTO_DIRECTORY = 0x3,
 	COMMAND_GET_NEXT_CONTENTS = 0x4,
@@ -340,38 +330,13 @@ static void drawPanel(
 }
 
 
-static void printHeading(
-        DMAChain *chain,
-        const TextureInfo *font,
-        int x,
-        int y,
-        const char *text,
-        size_t maxLen)
-{
-        char buffer[128];
-        size_t len = strlen(text);
-        if (len < maxLen)
-        {
-                strncpy(buffer, text, sizeof(buffer));
-                buffer[sizeof(buffer) - 1] = '\0';
-        }
-        else
-        {
-                size_t copyLen = MIN(maxLen, sizeof(buffer) - 1);
-                if (copyLen > 3)
-                {
-                        copyLen -= 3;
-                }
-                strncpy(buffer, text, copyLen);
-                buffer[copyLen] = '\0';
-                strncat(buffer, "...", sizeof(buffer) - strlen(buffer) - 1);
-        }
-
-        printString(chain, font, x, y, buffer);
-}
+// printHeading removed because it's unused; trimming/truncation is handled
+// in other parts of the code (e.g. xmb.c). Keeping this out avoids
+// an unused-function warning.
 
 extern const uint8_t fontTexture[], fontPalette[], logoTexture[], logoPalette[];
 extern const uint8_t click_sfx[], slide_sfx[];
+
 
 #define c_maxFilePathLength 255
 #define c_maxFilePathLengthWithTerminator c_maxFilePathLength + 1
@@ -491,266 +456,298 @@ int main(int argc, const char **argv)
 		TEXTURE_COLOR_DEPTH
 	);
 
-	DMAChain dmaChains[2];
-	bool usingSecondFrame = false;
+	/* per-frame chain double buffering removed in this branch; use a
+	 * single local DMAChain when preparing a frame. */
 
 	char sectorBuffer[2324];
 	
-	static uint8_t highlight = 0;
-	
-	uint32_t fileEntryCount = 0;
+        static uint8_t highlight = 0;
 
-	uint16_t selectedindex = 0;
+        uint32_t fileEntryCount = 0;
 
-	int creditsmenu = 0;
+        XMBMenu menu;
+        xmb_init(&menu);
 
-	uint16_t previousButtons = getButtonPress(0);
+        int lastNonInfoCategory = UI_CATEGORY_GAMES;
 
-	for (;;)
+        const uint16_t pageSize = 8;
+
+        menu.categories[UI_CATEGORY_GAMES].item_count = (int)fileEntryCount;
+	xmb_clamp_current_item(&menu, UI_CATEGORY_GAMES);
+
+	const XMBCategory* currentCategory = &menu.categories[menu.current_category];
+	if (currentCategory->type != XMB_CATEGORY_INFO)
 	{
-		int bufferX = usingSecondFrame ? SCREEN_WIDTH : 0;
-		int bufferY = 0;
+		lastNonInfoCategory = menu.current_category;
+	}
 
-		DMAChain *chain = &dmaChains[usingSecondFrame];
-		usingSecondFrame = !usingSecondFrame;
+	bool navigationSound = false;
 
-		uint32_t *ptr;
+	if (BUTTON_MASK_LEFT)
+	{
+		xmb_handle_input(&menu, XMB_BTN_LEFT);
+		navigationSound = true;
+	}
+	if (BUTTON_MASK_RIGHT)
+	{
+		xmb_handle_input(&menu, XMB_BTN_RIGHT);
+		navigationSound = true;
+	}
+	if (BUTTON_MASK_UP)
+	{
+		xmb_handle_input(&menu, XMB_BTN_UP);
+		navigationSound = true;
+	}
+	if (BUTTON_MASK_DOWN)
+	{
+		xmb_handle_input(&menu, XMB_BTN_DOWN);
+		navigationSound = true;
+	}
 
-		GPU_GP1 = gp1_fbOffset(bufferX, bufferY);
+	currentCategory = &menu.categories[menu.current_category];
 
-		chain->nextPacket = chain->data;
-
-		ptr = allocatePacket(chain, 4);
-		ptr[0] = gp0_texpage(0, true, false);
-		ptr[1] = gp0_fbOffset1(bufferX, bufferY);
-		ptr[2] = gp0_fbOffset2(bufferX + SCREEN_WIDTH - 1, bufferY + SCREEN_HEIGHT - 2);
-		ptr[3] = gp0_fbOrigin(bufferX, bufferY);
-
-                ptr    = allocatePacket(chain, 3);
-                ptr[0] = gp0_rgb(59, 0, 0) | gp0_vramFill();
-                ptr[1] = gp0_xy(bufferX, bufferY);
-                ptr[2] = gp0_xy(SCREEN_WIDTH, SCREEN_HEIGHT);
-
-                ptr    = allocatePacket(chain, 8);
-                ptr[0] = gp0_rgb(59, 0, 0) | gp0_shadedQuad(true, false, false);
-                ptr[1] = gp0_xy(bufferX + 0, bufferY + 0);
-                ptr[2] = gp0_rgb(167, 32, 28);
-                ptr[3] = gp0_xy(bufferX + SCREEN_WIDTH, bufferY + 0);
-                ptr[4] = gp0_rgb(55, 0, 0);
-                ptr[5] = gp0_xy(bufferX + 0, bufferY + SCREEN_HEIGHT - 1);
-                ptr[6] = gp0_rgb(209, 53, 54);
-                ptr[7] = gp0_xy(bufferX + SCREEN_WIDTH, bufferY + SCREEN_HEIGHT - 1);
-
-                drawPanel(chain, bufferX, bufferY, SCREEN_WIDTH, 36, 0, 0, 0, true);
-
-                uint32_t *logoPacket = allocatePacket(chain, 5);
-                logoPacket[0] = gp0_texpage(logo.page, false, false);
-                logoPacket[1] = gp0_rectangle(true, true, true);
-                logoPacket[2] = gp0_xy(HEADER_TEXT_X, 6);
-                logoPacket[3] = gp0_uv(logo.u, logo.v, logo.clut);
-                logoPacket[4] = gp0_xy(logo.width, logo.height);
-		
-		// get the controller button press
-		uint16_t buttons = getButtonPress(0);
-		uint16_t pressedButtons = ~previousButtons & buttons;
-		static uint8_t hold = 0;
-		
-		if ((buttons & BUTTON_MASK_UP) && (previousButtons & BUTTON_MASK_UP))
+	if (BUTTON_MASK_SELECT)
+	{
+		if (currentCategory->type == XMB_CATEGORY_INFO)
 		{
-			if (++hold > 30) {
-				pressedButtons ^= BUTTON_MASK_UP;
-				hold = 25;
+			menu.current_category = lastNonInfoCategory;
+		}
+		else
+		{
+			lastNonInfoCategory = menu.current_category;
+			menu.current_category = UI_CATEGORY_CREDITS;
+		}
+		xmb_clamp_current_item(&menu, menu.current_category);
+		currentCategory = &menu.categories[menu.current_category];
+		navigationSound = true;
+	}
+
+	if ((BUTTON_MASK_X) && currentCategory->type == XMB_CATEGORY_INFO)
+	{
+		menu.current_category = lastNonInfoCategory;
+		xmb_clamp_current_item(&menu, menu.current_category);
+		currentCategory = &menu.categories[menu.current_category];
+		navigationSound = true;
+	}
+
+	if (menu.current_category == UI_CATEGORY_GAMES && fileEntryCount > 0)
+	{
+		int item = xmb_get_current_item(&menu);
+		if (BUTTON_MASK_L1)
+		{
+			item -= pageSize;
+			if (item < 0)
+			{
+				item = 0;
+			}
+			xmb_set_current_item(&menu, item);
+			navigationSound = true;
+		}
+		if (BUTTON_MASK_R1)
+		{
+			item = xmb_get_current_item(&menu) + pageSize;
+			if (item >= (int)fileEntryCount)
+			{
+				item = (int)fileEntryCount - 1;
+			}
+			if (item < 0)
+			{
+				item = 0;
+			}
+			xmb_set_current_item(&menu, item);
+			navigationSound = true;
+		}
+	}
+
+	if (navigationSound)
+	{
+		sound_playOnChannel(&sfx_click, SFX_VOL, SFX_VOL, 0);
+	}
+
+	currentCategory = &menu.categories[menu.current_category];
+	int currentItemIndex = xmb_get_current_item(&menu);
+
+	if (currentCategory->type == XMB_CATEGORY_BROWSER)
+	{
+		if (fileEntryCount == 0)
+		{
+			xmb_set_current_item(&menu, 0);
+			currentItemIndex = 0;
+		}
+		else if (currentItemIndex >= (int)fileEntryCount)
+		{
+			xmb_set_current_item(&menu, (int)fileEntryCount - 1);
+			currentItemIndex = xmb_get_current_item(&menu);
+		}
+
+		if (fileEntryCount > 0)
+		{
+			fileData* file = file_manager_get_file_data((uint16_t)currentItemIndex);
+
+			if ((BUTTON_MASK_START) && file && file->flag == 0)
+			{
+				currentCommand = MENU_COMMAND_MOUNT_FILE_SLOW;
+				sound_playOnChannel(&sfx_slide, SFX_VOL, SFX_VOL, 1);
+			}
+
+			if (BUTTON_MASK_X)
+			{
+				if (file && file->flag == 0)
+				{
+					currentCommand = MENU_COMMAND_MOUNT_FILE_FAST;
+					sound_playOnChannel(&sfx_slide, SFX_VOL, SFX_VOL, 1);
+				}
+				else if (file && file->flag != 0)
+				{
+					currentCommand = MENU_COMMAND_GOTO_DIRECTORY;
+					sound_playOnChannel(&sfx_slide, SFX_VOL, SFX_VOL, 1);
+				}
 			}
 		}
-		else if ((buttons & BUTTON_MASK_DOWN) && (previousButtons & BUTTON_MASK_DOWN))
+
+		if (BUTTON_MASK_SQUARE)
 		{
-			if (++hold > 30) {
-				pressedButtons ^= BUTTON_MASK_DOWN;
-				hold = 25;
+			currentCommand = MENU_COMMAND_GOTO_PARENT;
+			sound_playOnChannel(&sfx_slide, SFX_VOL, SFX_VOL, 1);
+		}
+	}
+	else if (currentCategory->type == XMB_CATEGORY_ACTIONS)
+	{
+		if ((BUTTON_MASK_X) && currentCategory->item_count > 0)
+		{
+			if (currentItemIndex >= currentCategory->item_count)
+			{
+				currentItemIndex = currentCategory->item_count - 1;
+				xmb_set_current_item(&menu, currentItemIndex);
+			}
+			const XMBItem* item = &currentCategory->items[currentItemIndex];
+			if (item->type == XMB_ITEM_COMMAND)
+			{
+				currentCommand = item->command;
+				sound_playOnChannel(&sfx_slide, SFX_VOL, SFX_VOL, 1);
 			}
 		}
-		else {
-			hold = 0;
-		}
 
-                const uint16_t pageSize = 8;
-
-		if (pressedButtons & BUTTON_MASK_SELECT)
+		if (BUTTON_MASK_SQUARE)
 		{
-			creditsmenu = creditsmenu == 0 ? 1 : 0;
+			currentCommand = MENU_COMMAND_GOTO_PARENT;
+			sound_playOnChannel(&sfx_slide, SFX_VOL, SFX_VOL, 1);
 		}
+	}
+	else if (currentCategory->type == XMB_CATEGORY_INFO)
+	{
+		if (BUTTON_MASK_TRIANGLE)
+		{
+			currentCommand = MENU_COMMAND_BOOTLOADER;
+			sound_playOnChannel(&sfx_slide, SFX_VOL, SFX_VOL, 1);
+		}
+	}
 
+	if (currentCategory->type != XMB_CATEGORY_INFO && (BUTTON_MASK_TRIANGLE))
+	{
+		currentCommand = MENU_COMMAND_BOOTLOADER;
+		sound_playOnChannel(&sfx_slide, SFX_VOL, SFX_VOL, 1);
+	}
 
-                if (creditsmenu == 0)
-                {
-                        if (fileEntryCount > 0)
-                        {
-                                if (pressedButtons & BUTTON_MASK_UP)
-                                {
-                                        selectedindex = selectedindex > 0 ? selectedindex - 1 : fileEntryCount - 1;
-                                }
-                                else if (pressedButtons & BUTTON_MASK_DOWN)
-                                {
-                                        selectedindex = selectedindex < (int)(fileEntryCount - 1) ? selectedindex + 1 : 0;
-                                }
+	/* Prepare a DMA packet chain and draw the background/header that was
+	 * present previously. xmb_draw() and the drawing helpers expect the
+	 * chain->nextPacket to be initialized, and some header/background
+	 * primitives (vramFill / shadedQuad) were removed which resulted in a
+	 * black screen. Recreate the minimal setup here. */
+	DMAChain chain;
+	int bufferX = 0;
+	int bufferY = 0;
 
-                                if (pressedButtons & (BUTTON_MASK_LEFT | BUTTON_MASK_L1))
-                                {
-                                        selectedindex = selectedindex >= pageSize ? selectedindex - pageSize : 0;
-                                }
-                                else if (pressedButtons & (BUTTON_MASK_RIGHT | BUTTON_MASK_R1))
-                                {
-                                        if (fileEntryCount > pageSize)
-                                        {
-                                                uint16_t maxIndex = fileEntryCount > 0 ? fileEntryCount - 1 : 0;
-                                                selectedindex = selectedindex + pageSize <= maxIndex ? selectedindex + pageSize : maxIndex;
-                                        }
-                                }
-                        }
-                        else
-                        {
-                                selectedindex = 0;
-                        }
+	/* Set framebuffer offset and init the chain */
+	GPU_GP1 = gp1_fbOffset(bufferX, bufferY);
+	chain.nextPacket = chain.data;
 
-                        if (pressedButtons & (BUTTON_MASK_UP | BUTTON_MASK_DOWN | BUTTON_MASK_LEFT | BUTTON_MASK_RIGHT
-                                        | BUTTON_MASK_L1   | BUTTON_MASK_R1))
-                        {
-                                sound_playOnChannel(&sfx_click, SFX_VOL, SFX_VOL, 0);
-                        }
+	uint32_t *ptr = allocatePacket(&chain, 4);
+	ptr[0] = gp0_texpage(0, true, false);
+	ptr[1] = gp0_fbOffset1(bufferX, bufferY);
+	ptr[2] = gp0_fbOffset2(bufferX + SCREEN_WIDTH - 1, bufferY + SCREEN_HEIGHT - 2);
+	ptr[3] = gp0_fbOrigin(bufferX, bufferY);
 
-                        if (fileEntryCount > 0)
-                        {
-                                fileData *file = file_manager_get_file_data(selectedindex);
+    xmb_draw_background(&chain, bufferX, bufferY, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-                                if (pressedButtons & BUTTON_MASK_START)
-                                {
-                                        if (file->flag == 0)
-                                        {
-                                                currentCommand = MENU_COMMAND_MOUNT_FILE_SLOW;
-                                        }
-                                }
+	/* Small black header panel and the logo texture */
+	// drawPanel(&chain, bufferX, bufferY, SCREEN_WIDTH, 36, 0, 0, 0, true);
+	// uint32_t *logoPacket = allocatePacket(&chain, 5);
+	// logoPacket[0] = gp0_texpage(logo.page, false, false);
+	// logoPacket[1] = gp0_rectangle(true, true, true);
+	// logoPacket[2] = gp0_xy(HEADER_TEXT_X, 6);
+	// logoPacket[3] = gp0_uv(logo.u, logo.v, logo.clut);
+	// logoPacket[4] = gp0_xy(logo.width, logo.height);
 
-                                if (pressedButtons & BUTTON_MASK_X)
-                                {
-                                        if (file->flag == 0)
-                                        {
-                                                currentCommand = MENU_COMMAND_MOUNT_FILE_FAST;
-                                        }
-                                        else
-                                        {
-                                                currentCommand = MENU_COMMAND_GOTO_DIRECTORY;
-                                        }
-                                }
-                        }
+	xmb_draw(&menu,
+		&chain,
+		&font,
+		&logo,
+		fileEntryCount,
+		pageSize,
+		highlight,
+		drawPanel,
+		printString,
+		file_manager_get_file_data);
 
-                        if (pressedButtons & BUTTON_MASK_SQUARE)
-                        {
-                                currentCommand = MENU_COMMAND_GOTO_PARENT;
-                        }
+	if (currentCommand != MENU_COMMAND_NONE && currentCategory->type == XMB_CATEGORY_BROWSER)
+	{
+			printString(&chain, &font, LIST_PANEL_X + 12, LIST_PANEL_Y + 12, "Please Wait - Loading");
+	}
 
-                        if (pressedButtons & (BUTTON_MASK_SQUARE | BUTTON_MASK_X | BUTTON_MASK_START))
-                        {
-                                sound_playOnChannel(&sfx_slide, SFX_VOL, SFX_VOL, 1);
-                        }
+	highlight = (highlight + 1) & 0x3F;
 
-                        if (pressedButtons & BUTTON_MASK_TRIANGLE)
-                        {
-                                currentCommand = MENU_COMMAND_BOOTLOADER;
-                        }
-
-                        drawPanel(chain, LIST_PANEL_X, LIST_PANEL_Y, LIST_PANEL_WIDTH, LIST_PANEL_HEIGHT, 18, 18, 52, true);
-
-                        int headerLabelX = HEADER_TEXT_X + logo.width + 12;
-                        printString(chain, &font, headerLabelX, HEADER_TEXT_Y, "Game Library");
-
-                        char fbuffer[32];
-                        snprintf(fbuffer, sizeof(fbuffer), "%i of %i", fileEntryCount > 0 ? selectedindex + 1 : 0, fileEntryCount);
-                        printString(chain, &font, headerLabelX, HEADER_TEXT_Y + FONT_LINE_HEIGHT, fbuffer);
-
-                        if (currentCommand != MENU_COMMAND_NONE)
-                        {
-                                printString(chain, &font, LIST_PANEL_X + 12, LIST_PANEL_Y + 12, "Please Wait - Loading");
-                        }
-                        else if (fileEntryCount > 0)
-                        {
-                                int32_t start = 0;
-                                if ((int32_t)fileEntryCount >= pageSize)
-                                {
-                                        start = MIN(MAX((int32_t)selectedindex - (pageSize / 2), 0), (int32_t)fileEntryCount - pageSize);
-                                }
-
-                                int32_t itemCount = MIN(start + pageSize, (int32_t)fileEntryCount) - start;
-                                for (int32_t i = 0; i < itemCount; i++)
-                                {
-                                        uint32_t index = start + i;
-                                        int entryY = LIST_ENTRY_OFFSET_Y + (i * LIST_ENTRY_HEIGHT);
-
-                                        if (index == selectedindex)
-                                        {
-                                                uint8_t color = 40 + (highlight & 0x1F);
-                                                drawPanel(chain, LIST_PANEL_X + 4, entryY - 4, LIST_PANEL_WIDTH - 8, LIST_ENTRY_HEIGHT + 6, color, color + 18, color + 48, true);
-                                        }
-
-                                        fileData *file = file_manager_get_file_data(index);
-                                        char buffer[96];
-                                        snprintf(buffer, sizeof(buffer), "%02d  %s %s", index + 1, file->flag == 0 ? "" : "", file->filename);
-                                        printHeading(chain, &font, LIST_ENTRY_OFFSET_X, entryY, buffer, 32);
-                                }
-                        }
-                        else
-                        {
-                                printString(chain, &font, LIST_ENTRY_OFFSET_X, LIST_ENTRY_OFFSET_Y, "Empty Folder");
-                        }
-
-                        printString(chain, &font, 16, SCREEN_HEIGHT - 22, "X Fast Boot  START Full Boot  [] Parent");
-                        printString(chain, &font, 16, SCREEN_HEIGHT - 12, "SELECT Credits  L1/R1 Page  TRIANGLE Bootloader");
-
-                        highlight = (highlight + 1) & 0x3F;
-                }
-                else
-                {
-                        drawPanel(chain, 32, 70, SCREEN_WIDTH - 64, SCREEN_HEIGHT - 140, 14, 14, 36, true);
-                        drawPanel(chain, 38, 76, SCREEN_WIDTH - 76, SCREEN_HEIGHT - 152, 6, 6, 20, true);
-
-                        printString(chain, &font, 48, 92, "Picostation Menu Alpha Release");
-                        printString(chain, &font, 48, 122, "Huge thanks to Rama, Skitchin, Raijin,");
-                        printString(chain, &font, 48, 134, "SpicyJpeg, Danhans42, NicholasNoble");
-                        printString(chain, &font, 48, 146, "and ChatGPT");
-                        printString(chain, &font, 48, 176, "https://github.com/megavolt85/picostation-menu");
-                        printString(chain, &font, 48, 202, "SELECT to return");
-                }
-		previousButtons = buttons;
-		*(chain->nextPacket) = gp0_endTag(0);
+		*(chain.nextPacket) = gp0_endTag(0);
 		waitForGP0Ready();
 		waitForVblank();
-		sendLinkedList(chain->data);
+		sendLinkedList(chain.data);
 
-		if (currentCommand != MENU_COMMAND_NONE)
+	if (currentCommand != MENU_COMMAND_NONE)
+	{
+		if (currentCommand == MENU_COMMAND_GOTO_ROOT)
 		{
-			if (currentCommand == MENU_COMMAND_GOTO_ROOT)
+			fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_ROOT, 0);
+			menu.current_item[UI_CATEGORY_GAMES] = 0;
+		}
+		else if (currentCommand == MENU_COMMAND_GOTO_PARENT)
+		{
+			fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_PARENT, 0);
+			menu.current_item[UI_CATEGORY_GAMES] = 0;
+		}
+		else if (currentCommand == MENU_COMMAND_BOOTLOADER)
+		{
+			// sendCommand(COMMAND_BOOTLOADER, 0xBEEF);
+		}
+		else if (currentCommand == MENU_COMMAND_GOTO_DIRECTORY)
+		{
+			if (fileEntryCount > 0)
 			{
-				fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_ROOT, 0);
+				int selection = menu.current_item[UI_CATEGORY_GAMES];
+				if (selection < 0)
+				{
+					selection = 0;
+				}
+				if ((uint32_t)selection < fileEntryCount)
+				{
+					uint16_t index = file_manager_get_file_index((uint16_t)selection);
+					fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_DIRECTORY, index);
+					menu.current_item[UI_CATEGORY_GAMES] = 0;
+				}
 			}
-			else if (currentCommand == MENU_COMMAND_GOTO_PARENT)
+		}
+		else if ((currentCommand == MENU_COMMAND_MOUNT_FILE_FAST) || (currentCommand == MENU_COMMAND_MOUNT_FILE_SLOW))
+		{
+			int selection = menu.current_item[UI_CATEGORY_GAMES];
+			if (selection < 0)
 			{
-				fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_PARENT, 0);
-				selectedindex = 0;
+				selection = 0;
 			}
-			else if (currentCommand == MENU_COMMAND_BOOTLOADER)
-			{
-				// sendCommand(COMMAND_BOOTLOADER, 0xBEEF);
-			}
-			else if (currentCommand == MENU_COMMAND_GOTO_DIRECTORY)
-			{
-				uint16_t index = file_manager_get_file_index(selectedindex);
-				fileEntryCount = list_load(sectorBuffer, COMMAND_GOTO_DIRECTORY, index);
-				selectedindex = 0;
-			}
-			else if ((currentCommand == MENU_COMMAND_MOUNT_FILE_FAST) || (currentCommand == MENU_COMMAND_MOUNT_FILE_SLOW))
-			{
-				DEBUG_PRINT("DEBUG: selectedindex :%d\n", selectedindex);
 
-				uint16_t index = file_manager_get_file_index(selectedindex);
+			if ((uint32_t)selection < fileEntryCount)
+			{
+				DEBUG_PRINT("DEBUG: selected index :%d\n", selection);
+
+				uint16_t index = file_manager_get_file_index((uint16_t)selection);
 				DEBUG_PRINT("Mount image\n");
 				sendCommand(COMMAND_MOUNT_FILE, index);
 				delayMicroseconds(400000);
@@ -776,42 +773,42 @@ int main(int argc, const char **argv)
 							int j = 0;
 							char tempBuffer[500];
 							memset(tempBuffer, 0, 500);
-							while (configBuffer[i] != '\0' && configBuffer[i] != '\n' && i < 499) 
+							while (configBuffer[i] != '\0' && configBuffer[i] != '\n' && i < 499)
 							{
-								if (configBuffer[i] != ' ' && configBuffer[i] != '\t') 
-								{ 
-									tempBuffer[j] = configBuffer[i]; 
+								if (configBuffer[i] != ' ' && configBuffer[i] != '\t')
+								{
+									tempBuffer[j] = configBuffer[i];
 									j++;
 								}
-								i++; 
+								i++;
 							}
 
-							char* gameId = tempBuffer;
+							char* gameIdPtr = tempBuffer;
 							if (strncmp(tempBuffer, "BOOT=", 5) == 0)
 							{
-								gameId = tempBuffer + 5;
+								gameIdPtr = tempBuffer + 5;
 							}
 
-							DEBUG_PRINT("Game id: %s\n", gameId);
+							DEBUG_PRINT("Game id: %s\n", gameIdPtr);
 
 							DEBUG_PRINT("Sending game id to memcard (%02X)\n", MCPpresent);
-							sendGameID(gameId, MCPpresent);
+							sendGameID(gameIdPtr, MCPpresent);
 
 							//DEBUG_PRINT("Sending game id to picostation\n");
 							//sendCommand(COMMAND_IO_COMMAND, IO_COMMAND_GAMEID);
-							/*uint32_t len = strlen(gameId);
-							size_t paddedLen = len + 1; 
+							/*uint32_t len = strlen(gameIdPtr);
+							size_t paddedLen = len + 1;
 							for (uint32_t i = 0; i < paddedLen; i += 2)
 							{
 								delayMicroseconds(10000);
 								uint16_t pair = 0;
 								if (i < len)
 								{
-									pair |= (uint8_t)gameId[i] << 8;
+									pair |= (uint8_t)gameIdPtr[i] << 8;
 								}
 								if (i + 1 < len)
 								{
-									pair |= (uint8_t)gameId[i + 1];
+									pair |= (uint8_t)gameIdPtr[i + 1];
 								}
 								sendCommand(COMMAND_IO_DATA, pair);
 							}*/
@@ -830,10 +827,14 @@ int main(int argc, const char **argv)
 					softReset();
 				}
 			}
-
-			currentCommand = MENU_COMMAND_NONE;
 		}
+
+		menu.categories[UI_CATEGORY_GAMES].item_count = (int)fileEntryCount;
+		xmb_clamp_current_item(&menu, UI_CATEGORY_GAMES);
+
+		currentCommand = MENU_COMMAND_NONE;
 	}
+	
 
 	return 0;
 }
