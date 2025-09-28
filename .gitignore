@@ -56,3 +56,5 @@ env/
 .vscode
 .clangd
 
+*.patch
+*.rej

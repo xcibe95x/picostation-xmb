@@ -465,10 +465,20 @@ int main(int argc, const char **argv)
 		ptr[2] = gp0_fbOffset2(bufferX + SCREEN_WIDTH - 1, bufferY + SCREEN_HEIGHT - 2);
 		ptr[3] = gp0_fbOrigin(bufferX, bufferY);
 
-		ptr    = allocatePacket(chain, 3);
-		ptr[0] = gp0_rgb(209, 52, 52) | gp0_vramFill();
+		ptr = allocatePacket(chain, 3);
+		ptr[0] = gp0_rgb(27, 25, 47) | gp0_vramFill(); // base fill: bottom color
 		ptr[1] = gp0_xy(bufferX, bufferY);
 		ptr[2] = gp0_xy(SCREEN_WIDTH, SCREEN_HEIGHT);
+
+		ptr = allocatePacket(chain, 8);
+		ptr[0] = gp0_rgb(49, 81, 102) | gp0_shadedQuad(true, false, false); // top-left
+		ptr[1] = gp0_xy(0, 0);
+		ptr[2] = gp0_rgb(49, 81, 102); // top-right same color
+		ptr[3] = gp0_xy(SCREEN_WIDTH, 0);
+		ptr[4] = gp0_rgb(27, 25, 47); // bottom-left
+		ptr[5] = gp0_xy(0, SCREEN_HEIGHT - 1);
+		ptr[6] = gp0_rgb(27, 25, 47); // bottom-right
+		ptr[7] = gp0_xy(SCREEN_WIDTH, SCREEN_HEIGHT - 1);
 
 		//draw logo
 		//if (firstboot == 0 && loadingmenu == 0){
