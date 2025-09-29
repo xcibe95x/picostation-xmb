@@ -636,14 +636,14 @@ int main(int argc, const char **argv)
 		{
 			printString(
 				chain, &font, 40, 40,
-				"PicosSation Menu Alpha Release");
+				"PicosSation v1.0.2\n (xcibe95x)");
 			printString(
 				chain, &font, 40, 80,
-				"Huge thanks to Rama, Skitchin, Raijin, SpicyJpeg,\nDanhans42, NicholasNoble and ChatGPT");
+				"Huge thanks to Rama, Skitchin, Raijin, SpicyJpeg,\nDanhans42, NicholasNoble, ManiacVera and ChatGPT.");
 
 			printString(
 				chain, &font, 40, 120,
-				"https://github.com/megavolt85/picostation-menu");
+				"https://github.com/xcibe95x/picostation");
 		}
 
 
